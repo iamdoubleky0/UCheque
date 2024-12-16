@@ -4,9 +4,6 @@ require '../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file']) && isset($_POST['userId']) && isset($_POST['academicYear']) && isset($_POST['semester'])) {
-    $userId = (int)$_POST['userId'];
-    $academicYear = $_POST['academicYear'];
-    $semester = $_POST['semester'];
 
     $file = $_FILES['file'];
     if ($file['error'] !== UPLOAD_ERR_OK) {
@@ -16,12 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file']) && isset($_PO
         exit(0);
     }
 
-    // Define upload directory and get the file name
     $uploadDir = '../../uploads/';
-    $fileName = basename($file['name']);
-    $filePath = $uploadDir . $fileName;
+    $filePath = $uploadDir . basename($file['name']);
 
-    // Move the uploaded file to the target directory
     if (!move_uploaded_file($file['tmp_name'], $filePath)) {
         $_SESSION['status'] = "Error moving uploaded file";
         $_SESSION['status_code'] = "error";
@@ -59,7 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file']) && isset($_PO
             }
         }
 
-        // Check if necessary data is found
         if ($facultyCredit === null || $designationLoadRelease === null) {
             $_SESSION['status'] = "Required data not found in the Excel file";
             $_SESSION['status_code'] = "error";
@@ -67,7 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file']) && isset($_PO
             exit(0);
         }
 
-        // Validate data
         if (!is_numeric($facultyCredit) || !is_numeric($designationLoadRelease)) {
             $_SESSION['status'] = "Invalid data in the Excel file";
             $_SESSION['status_code'] = "error";
@@ -75,20 +67,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file']) && isset($_PO
             exit(0);
         }
 
-        // Calculate overload hours
-        $regularHours = 18;
+        $regularHours = 18; 
+
         $allowableUnit = $regularHours - $designationLoadRelease;
         $totalOverload = $facultyCredit - $allowableUnit;
+
         $designated = ($designationLoadRelease == 0) ? 'Non-Designated' : 'Designated';
+
+        $userId = (int)$_POST['userId'];
+        $academicYear = $_POST['academicYear'];  // Get academic year from POST
+        $semester = $_POST['semester'];  // Get semester from POST
 
         require_once '../config/config.php';
 
-        // SQL query with filePath and fileName
-        $sql = "INSERT INTO itl_extracted_data (userId, academicYear, semester, facultyCredit, designationLoadRelease, regularHours, totalOverload, designated, filePath, fileName)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO itl_extracted_data (userId, facultyCredit, designationLoadRelease, regularHours, totalOverload, designated, filePath, academicYear, semester)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         if ($stmt = $con->prepare($sql)) {
-            $stmt->bind_param("isssidisss", $userId, $academicYear, $semester, $facultyCredit, $designationLoadRelease, $regularHours, $totalOverload, $designated, $filePath, $fileName);
+            $stmt->bind_param("idiidssss", $userId, $facultyCredit, $designationLoadRelease, $regularHours, $totalOverload, $designated, $filePath, $academicYear, $semester);
 
             if ($stmt->execute()) {
                 $_SESSION['status'] = "Data Import Successfully";
