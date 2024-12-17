@@ -295,7 +295,12 @@ if (isset($_GET['message'])) {
                         </select>
                     </div>
 
-                    
+                    <!-- Secondary role STAFF -->
+                    <div class="mb-3">
+                        <label for="staffRole" class="form-label">Apply as Staff</label>
+                        <input type="radio" name="staffRole" value="multi-role" style="margin-left: 50px;"> 
+                    </div>
+                   
                     <!-- Status -->
                     <div class="mb-3">
                         <label for="editStatus" class="form-label">Status</label>

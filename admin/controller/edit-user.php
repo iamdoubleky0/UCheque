@@ -12,16 +12,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $status = $_POST['status'];
     $roles = isset($_POST['roles']) ? $_POST['roles'] : [];
 
-    // Prepare the SQL update query for user details
+   
     $query = "UPDATE employee 
               SET firstName = ?, middleName = ?, lastName = ?, emailAddress = ?, phoneNumber = ?, status = ?
               WHERE userId = ?";
     $stmt = $con->prepare($query);
     $stmt->bind_param('ssssssi', $firstName, $middleName, $lastName, $emailAddress, $phoneNumber, $status, $userId);
 
-    // Execute the query and check if it was successful
+    
     if ($stmt->execute()) {
-        // Only update roles if any are selected
         if (!empty($roles)) {
             // Delete current roles and insert new ones
             $deleteRolesQuery = "DELETE FROM employee_role WHERE userId = ?";
@@ -38,12 +37,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
 
+        // additional staff role
+        $staffRole = $_POST['staffRole'] ?? null;
+        if ($staffRole) {
+            $staffRoleId = 4; 
+            $insertStaffRoleQuery = "INSERT INTO employee_role (userId, role_id) VALUES (?, ?)";
+            $stmtStaffInsert = $con->prepare($insertStaffRoleQuery);
+            $stmtStaffInsert->bind_param('ii', $userId, $staffRoleId);
+            $stmtStaffInsert->execute();
+            $stmtStaffInsert->close();
+        }
+
         $_SESSION['status'] = 'User Updated!';
         $_SESSION['status_code'] = 'success';
         header('Location: ../user.php');
         exit;
     } else {
-        // Redirect back with an error message
+       
         header('Location: ../users.php?error=Failed to update user');
     }
 

@@ -1,3 +1,4 @@
+<?php $user_roles = isset($user_roles) ? $user_roles : ['Admin', 'Staff']; ?>
 <body>
         <div class="sidebar">
           <div class="logo"><img src="./assets/images/logoall-light.png" alt=""></div>
@@ -11,6 +12,5 @@
             <?php if(isset($user_roles) && count($user_roles) > 1) { ?>
             <li class="switch"> <a href="../loginas.php"><i class='bx bx-code'></i><span>switch</span></a></li>
             <?php } ?>
-            
           </ul>
         </div>
