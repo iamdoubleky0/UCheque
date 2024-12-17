@@ -56,73 +56,12 @@ include('./includes/topbar.php');
                         <th>Action</th>
                       </tr>
                       <tbody>
-                        <?php
-                        include '../config/config.php';
-                        $limit = 5;
-
-                        $totalResult = $con->query("SELECT COUNT(*) AS total FROM employee");
-                        $totalRows = $totalResult->fetch_assoc()['total'];
-                        $totalPages = ceil($totalRows / $limit);
-
-                        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-                        $page = max($page, 1); 
                        
-                        $offset = ($page - 1) * $limit;
-
-                        $sql = "SELECT employeeId, firstName, middleName, lastName, pdf_file_name FROM employee WHERE role = 'Faculty' LIMIT $limit OFFSET $offset" ;
-                        $result = $con->query($sql);
-
-                        if ($result->num_rows > 0) {
-                            while ($row = $result->fetch_assoc()) {
-                                $fullName = $row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName'];
-                                echo '<tr>
-                                        <td>' . $row['employeeId'] . '</td>
-                                        <td>' . $fullName . '</td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td>';
-
-                           
-                                echo '</td>
-                                        <td>
-                                            <button id="openModalBtn"  class="pointer-btn" data-id="' . $row['employeeId'] . '" data-name="' . $fullName . '">
-                                               <i class="bx bxs-printer" style="width: 20px;"></i>
-                                            </button>
-                                           
-
-                                        </td>
-                                    </tr>';
-                            }
-                        } else {
-                            echo '<tr><td colspan="7">No faculty members found.</td></tr>';
-                        }
-
-                        $con->close();
-                        ?>
                     </tbody>
                     </thead>
                   </table>
                   <div class="pagination" id="pagination">
-                  <?php
-                      if ($totalPages > 1) {
-                          // First and Previous buttons
-                          echo '<a href="?page=1" class="pagination-button">&laquo;</a>';
-                          $prevPage = max(1, $page - 1);
-                          echo '<a href="?page=' . $prevPage . '" class="pagination-button">&lsaquo;</a>';
-
-                          // Numbered page links
-                          for ($i = 1; $i <= $totalPages; $i++) {
-                              $activeClass = ($i == $page) ? 'active' : '';
-                              echo '<a href="?page=' . $i . '" class="pagination-button ' . $activeClass . '">' . $i . '</a>';
-                          }
-
-                          // Next and Last buttons
-                          $nextPage = min($totalPages, $page + 1);
-                          echo '<a href="?page=' . $nextPage . '" class="pagination-button">&rsaquo;</a>';
-                          echo '<a href="?page=' . $totalPages . '" class="pagination-button">&raquo;</a>';
-                      }
-                  ?>
+                
                 </div>
                </div>
 

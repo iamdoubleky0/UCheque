@@ -1,72 +1,99 @@
 <?php
- include("../config/config.php");
- session_start();
+include("../config/config.php");
+session_start();
 
- if (isset($_POST['addUser']))
- {
+if (isset($_POST['addUser'])) {
+    $employeeId = $_POST['employeeId'];
     $firstName = $_POST['firstName'];
-    $middleName = $_POST['middleName'];
+    $middleName = isset($_POST['middleName']) ? $_POST['middleName'] : null;
     $lastName = $_POST['lastName'];
-    $phoneNumber = $_POST['phoneNumber'];
+    $phoneNumber = isset($_POST['phoneNumber']) ? $_POST['phoneNumber'] : null;
     $emailAddress = $_POST['emailAddress'];
-    $birthday = $_POST['birthday'];
-    $userName = $_POST['userName'];
-    $role = $_POST['role'];
+    $roles = isset($_POST['role']) ? $_POST['role'] : [];
+    $profilePicture = null;
+    // $department = isset($_POST['department']) ? $_POST['department'] : null; // department can be null if not required
 
-     // Function to generate a random password
-     function generateRandomPassword($length = 8) {
-        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $password = '';
-        $charactersLength = strlen($characters);
-        
-        for ($i = 0; $i < $length; $i++) {
-            $password .= $characters[rand(0, $charactersLength - 1)];
-        }
-        
-        return $password;
+    // Initialize an array for error messages
+    $errorMessages = [];
+
+    // Check if role is selected
+    if (empty($roles)) {
+        $errorMessages[] = "Role must be selected.";
     }
-    
-    // Generate a random password
-    $password = generateRandomPassword();
 
-    // Use prepared statements to prevent SQL injection
-    $query = "INSERT INTO `users` (`firstName`, `middleName`, `lastName`, `username`, `password`, `emailAddress`, `role`) VALUES ('$firstName', '$middleName', '$lastName', '$userName', '$password', '$emailAddress', '$role')";
-    
-    $query_run = mysqli_query($con, $query);
+    // Check if the employeeId, phoneNumber, or emailAddress already exist
+    $checkQuery = "SELECT * FROM `employee` WHERE `employeeId` = ? OR `phoneNumber` = ? OR `emailAddress` = ?";
+    $checkStmt = mysqli_prepare($con, $checkQuery);
+    mysqli_stmt_bind_param($checkStmt, "sss", $employeeId, $phoneNumber, $emailAddress);
+    mysqli_stmt_execute($checkStmt);
+    $result = mysqli_stmt_get_result($checkStmt);
 
-    if ($query_run) {
+    // Check for existing employeeId, phoneNumber, or emailAddress
+    if ($row = mysqli_fetch_assoc($result)) {
+        if ($row['employeeId'] == $employeeId) {
+            $errorMessages[] = "Employee ID already taken.";
+        }
+        if ($row['phoneNumber'] == $phoneNumber) {
+            $errorMessages[] = "Phone Number already taken.";
+        }
+        if ($row['emailAddress'] == $emailAddress) {
+            $errorMessages[] = "Email Address already taken.";
+        }
+    }
 
-        // $mail = new PHPMailer(true);
+    // If there are any errors, redirect back to the add user page with error messages
+    if (!empty($errorMessages)) {
+        $_SESSION['status'] = implode('<br>', $errorMessages); // Join the error messages with a line break
+        $_SESSION['status_code'] = "error";
+        header('Location: ../add-user.php');
+        exit(0);
+    }
 
-        // $mail->isSMTP();
-        // $mail->Host = 'smtp.gmail.com';
-        // $mail->SMTPAuth = true;
-        // $mail->Username = 'tms.onlinesystem@gmail.com';
-        // $mail->Password = 'nvihuxxrogwzxrai';
-        // $mail->SMTPSecure = 'ssl';
-        // $mail->Port = 465;
+    // If department is not required (i.e., role is not Faculty), set department to NULL
+    if (!in_array(2, $roles)) {  // Assuming "Faculty" role has an ID of 2
+        $department = null; // Non-Faculty roles don't require a department
+    }
 
-        // $mail->setFrom('tms.onlinesystem@gmail.com');
+    // Prepare and execute the INSERT query
+    $query = "INSERT INTO `employee` 
+              (`employeeId`, `firstName`, `middleName`, `lastName`, `phoneNumber`, `emailAddress`, `password`, `profilePicture`) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)"; 
 
-        // $mail->addAddress($email);
+    $stmt = mysqli_prepare($con, $query);
+    if (!$stmt) {
+        die("Query preparation failed: " . mysqli_error($con));
+    }
 
-        // $mail->isHTML(true);
+    // Ensure to bind parameters correctly, allowing department to be NULL
+    mysqli_stmt_bind_param($stmt, "ssssssss", $employeeId, $firstName, $middleName, $lastName, $phoneNumber, $emailAddress, $password, $profilePicture);
+    $execute = mysqli_stmt_execute($stmt);
 
-        // $mail->Subject = "$firstname $lastname";
-        // $mail->Body = "You account subscription has been rejected.";
-        // $mail->send();
+    if ($execute) {
+        $userId = mysqli_insert_id($con);
 
+        // Insert roles if they exist
+        if (!empty($roles)) {
+            foreach ($roles as $role) {
+                $roleQuery = "INSERT INTO `employee_role` (`userId`, `role_id`) VALUES (?, ?)";
+                $roleStmt = mysqli_prepare($con, $roleQuery);
+                if (!$roleStmt) {
+                    die("Role query preparation failed: " . mysqli_error($con));
+                }
+                mysqli_stmt_bind_param($roleStmt, "ii", $userId, $role);
+                if (!mysqli_stmt_execute($roleStmt)) {
+                    die("Role query execution failed: " . mysqli_error($con));
+                }
+            }
+        }
 
-        $_SESSION['status'] = "User has been added successfully!";
+        $_SESSION['status'] = "Employee has been added successfully!";
         $_SESSION['status_code'] = "success";
-        header('Location: ../users.php');
+        header('Location: ../s_user.php');
         exit(0);
     } else {
         echo "Error: " . mysqli_error($con);
     }
+
     mysqli_close($con);
 }
-
-
-
 ?>

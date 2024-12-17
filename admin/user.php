@@ -21,7 +21,7 @@ if (isset($_GET['message'])) {
                 <input type="text" name="search_user" placeholder="Search user..." value="<?php echo isset($_GET['search_user']) ? htmlspecialchars($_GET['search_user']) : ''; ?>" style="width: 200px; margin-right: 10px;">
                 
                 <!-- Select Role Dropdown -->
-                <select name="role_filter" onchange="this.form.submit()" style="width: 200px; margin-right: 10px;">
+                <select name="role_filter" onchange="this.form.submit()" style="height: 43px; margin-right: 10px; width: 150px;">
                     <option value="" disabled selected>Select Role</option>
                     <option value="ALL" <?php if (isset($_GET['role_filter']) && $_GET['role_filter'] == 'ALL') echo 'selected'; ?>>All</option>
                     <option value="4" <?php if (isset($_GET['role_filter']) && $_GET['role_filter'] == '4') echo 'selected'; ?>>Staff</option>
@@ -32,34 +32,34 @@ if (isset($_GET['message'])) {
         </div>
 
        <!-- Import User Button -->
-<button class="btn-add" data-bs-toggle="modal" data-bs-target="#importModal">
-    <i class='bx bxs-file-import'></i>
-    <span class="text">Import User</span>
-</button>
+    <button class="btn-add" data-bs-toggle="modal" data-bs-target="#importModal">
+        <i class='bx bxs-file-import'></i>
+        <span class="text">Import User</span>
+    </button>
 
-<!-- Modal for Importing Users -->
-<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="importModalLabel">Import User</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="controller/import-users.php" method="POST" enctype="multipart/form-data">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="importFile" class="form-label">Choose File</label>
-                        <input type="file" class="form-control" id="importFile" name="file" required>
+    <!-- Modal for Importing Users -->
+    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importModalLabel">Import User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="controller/import-users.php" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="importFile" class="form-label">Choose File</label>
+                            <input type="file" class="form-control" id="importFile" name="file" required>
+                        </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Import</button>
-                </div>
-            </form>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Import</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 
         <a href="add-user.php" class="btn-add">
             <i class='bx bxs-user-plus'></i>

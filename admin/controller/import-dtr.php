@@ -4,102 +4,97 @@ require '../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
 require '../../config/config.php';
 
-// Check if file is uploaded and userId is provided
-if (isset($_FILES['file']) && $_FILES['file']['error'] == 0 && isset($_POST['userId'])) {
-    $userId = $_POST['userId'];
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
     $file = $_FILES['file'];
 
-    // Validate file type
-    $allowedExts = ['xlsx'];
-    $fileExt = pathinfo($file['name'], PATHINFO_EXTENSION);
-    if (!in_array($fileExt, $allowedExts)) {
-        $_SESSION['status'] = "Invalid file type. Only .xlsx files are allowed.";
-        $_SESSION['status_code'] = "error";
-        header('Location: ../dtr.php');
-        exit;
-    }
+    if ($file['error'] == 0) {
+        $originalFileName = basename($file['name']);
+        $fileExtension = pathinfo($originalFileName, PATHINFO_EXTENSION);
 
-    // Load the Excel file
-    try {
-        $spreadsheet = IOFactory::load($file['tmp_name']);
+        $newFileName = time() . '-' . uniqid() . '.' . $fileExtension;
+        
+        $uploadDirectory = '../../uploads/'; 
+        
+        if (!is_dir($uploadDirectory)) {
+            mkdir($uploadDirectory, 0777, true); 
+        }
 
-        // Assuming that the data is in the 3rd sheet (Table 3)
-        $sheet = $spreadsheet->getSheet(2); // Index starts from 0, so Sheet 3 is index 2
+        $filePath = $uploadDirectory . $newFileName;
 
-        // Extract data from H4 to H34 (weekly data)
-        $weekData = [];
-        for ($row = 4; $row <= 34; $row++) {
-            $remarksCell = $sheet->getCell('L' . $row)->getValue();
-            $cellValue = $sheet->getCell('H' . $row)->getValue();
+        if (move_uploaded_file($file['tmp_name'], $filePath)) {
+            $spreadsheet = IOFactory::load($filePath);
+            $sheet = $spreadsheet->getActiveSheet();
 
-            // Convert time values with ':' to decimal format
-            $cellValue = str_replace(':', '.', $cellValue); // Replace ':' with '.'
+            $monthYear = $sheet->getCell("G5")->getValue();
+            $monthYear = str_replace("Month/Year: ", "", $monthYear);
 
-            // Check if the remarks meet the condition
-            if (in_array($remarksCell, ["On Travel", "Holiday", "Health Break"])) {
-                $cellValue = 8; // Set to 8 hours if remarks match
-            } else {
-                $cellValue = is_numeric($cellValue) ? round((float)$cellValue, 2) : 0; // Ensure numeric and round to 2 decimal places
+            $days = [];
+            $totals = [];
+
+            for ($row = 10; $row <= 40; $row++) {
+                $day = $sheet->getCell("A$row")->getValue();
+                $total = $sheet->getCell("G$row")->getValue();
+                $days[] = $day;
+                $totals[] = $total;
             }
-            $weekData[] = $cellValue;
-        }
 
-        // Extract the total from H35
-        $totalValue = $sheet->getCell('H35')->getValue();
-        $totalValue = str_replace(':', '.', $totalValue); // Replace ':' with '.'
-        $totalValue = round((float)$totalValue, 2); // Convert to float and round
+            function convertToDecimal($time) {
+                return str_replace(":", ".", $time); 
+            }
 
-        // Divide the week data into 4 weeks
-        $week1 = round(array_sum(array_slice($weekData, 0, 7)), 2);  // Sum first 7 days for Week 1
-        $week2 = round(array_sum(array_slice($weekData, 7, 7)), 2);  // Sum next 7 days for Week 2
-        $week3 = round(array_sum(array_slice($weekData, 14, 7)), 2); // Sum next 7 days for Week 3
-        $week4 = round(array_sum(array_slice($weekData, 21, 7)), 2); // Sum next 7 days for Week 4
+            $weekTotals = [];
+            $weekCount = 1;
+            $weekSum = 0;
 
-        // Calculate overtime for each week
-        $otWeek1 = max(0, $week1 - 40);
-        $otWeek2 = max(0, $week2 - 40);
-        $otWeek3 = max(0, $week3 - 40);
-        $otWeek4 = max(0, $week4 - 40);
-        $otTotal = round($otWeek1 + $otWeek2 + $otWeek3 + $otWeek4, 2);
+            foreach ($totals as $index => $total) {
+                $totalDecimal = convertToDecimal($total);
+                $weekSum += (float)$totalDecimal; 
+                if (($index + 1) % 7 == 0 || $index == count($totals) - 1) {
+                    $weekTotals["week$weekCount"] = $weekSum;
+                    $weekCount++;
+                    $weekSum = 0; 
+                }
+            }
 
-        // File upload path
-        $fileName = $file['name'];
-        $filePath = 'uploads/' . $fileName;
-        if (!move_uploaded_file($file['tmp_name'], '../../uploads/' . $fileName)) {
-            $_SESSION['status'] = "File upload failed.";
-            $_SESSION['status_code'] = "error";
-            header('Location: ../dtr.php');
-            exit;
-        }
+            $overallTotal = 0;
+            foreach ($weekTotals as $weekTotal) {
+                $overallTotal += $weekTotal;
+            }
 
-        // Insert into dtr_data table
-        $insertQuery = "INSERT INTO `dtr_data`(`userId`, `week1`, `week2`, `week3`, `week4`, `otWeek1`, `otWeek2`, `otWeek3`, `otWeek4`, `otTotal`, `total`, `filePath`, `fileName`) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $con->prepare($insertQuery);
-        $stmt->bind_param('iddddddddsdss', $userId, $week1, $week2, $week3, $week4, $otWeek1, $otWeek2, $otWeek3, $otWeek4, $otTotal, $totalValue, $filePath, $fileName);
+            $userId = $_POST['userId'];
+            $academicYearId = $_POST['academic_year_id'];
+            $semesterId = $_POST['semester_id'];
 
+            $dateCreated = date('Y-m-d H:i:s');
 
-        // Execute the query and provide feedback
-        if ($stmt->execute()) {
-            $_SESSION['status'] = "Data imported successfully!";
-            $_SESSION['status_code'] = "success";
+            $query = "INSERT INTO dtr_extracted_data (userId, academic_year_id, semester_id, week1, week2, week3, week4, week5, overall_total, filePath, dateCreated, month_year)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            $stmt = $con->prepare($query);
+
+            if (!$stmt) {
+                die('Error preparing statement: ' . $con->error);
+            }
+
+            $stmt->bind_param("iiidddddddss", $userId, $academicYearId, $semesterId, 
+            $weekTotals['week1'], $weekTotals['week2'], 
+            $weekTotals['week3'], $weekTotals['week4'], 
+            $weekTotals['week5'], $overallTotal, $filePath, $dateCreated, $monthYear);
+
+            $executeResult = $stmt->execute();
+
+            if ($executeResult) {
+                $_SESSION['success_message'] = "DTR imported successfully!";
+                header("Location: ../dtr.php");
+                exit();
+            }            
+
+            $stmt->close();
         } else {
-            $_SESSION['status'] = "Failed to import data.";
-            $_SESSION['status_code'] = "error";
+            echo "Error uploading file!";
         }
-
-        header('Location: ../dtr.php');
-        exit;
-    } catch (Exception $e) {
-        $_SESSION['status'] = "Error loading file: " . $e->getMessage();
-        $_SESSION['status_code'] = "error";
-        header('Location: ../dtr.php');
-        exit;
+    } else {
+        echo "Error uploading file!";
     }
-} else {
-    $_SESSION['status'] = "Please select a user and upload a file.";
-    $_SESSION['status_code'] = "error";
-    header('Location: ../dtr.php');
-    exit;
 }
 ?>

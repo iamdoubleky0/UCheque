@@ -15,24 +15,29 @@ include('./includes/topbar.php');
                        style="width: 200px; margin-right: 10px;" 
                        onkeydown="if(event.key === 'Enter') this.form.submit();">
 
-                <select name="academic_year" onchange="this.form.submit()" style="width: 200px; margin-right: 10px;">
-                    <option value="" selected>Select Academic Year</option>
-                    <?php
-                    $years = [
-                        '2024-2025', '2025-2026', '2026-2027', '2027-2028', '2028-2029', '2029-2030'
-                    ];
-                    foreach ($years as $year) {
-                        $selected = (isset($_GET['academic_year']) && $_GET['academic_year'] == $year) ? 'selected' : '';
-                        echo "<option value='$year' $selected>$year</option>";
-                    }
-                    ?>
-                </select>
+                       <select name="academic_year" style="width: 200px; margin-right: 10px;">
+            <option value="" selected>Select Academic Year</option>
+            <?php
+            $years = ['2024-2025', '2025-2026', '2026-2027', '2027-2028', '2028-2029', '2029-2030'];
+            $selectedYear = isset($_GET['academic_year']) ? $_GET['academic_year'] : '';
+            foreach ($years as $year) {
+                $selected = ($year === $selectedYear) ? 'selected' : '';
+                echo "<option value='$year' $selected>$year</option>";
+            }
+            ?>
+        </select>
 
-                <select name="semester" onchange="this.form.submit()" style="width: 200px; margin-right: 10px;">
-                    <option value="" selected>Select Semester</option>
-                    <option value="1st Semester" <?php if (isset($_GET['semester']) && $_GET['semester'] == '1st Semester') echo 'selected'; ?>>First Semester</option>
-                    <option value="2nd Semester" <?php if (isset($_GET['semester']) && $_GET['semester'] == '2nd Semester') echo 'selected'; ?>>Second Semester</option>
-                </select>
+                <select name="semester" style="width: 200px; margin-right: 10px;">
+            <option value="" selected>Select Semester</option>
+            <?php
+            $semesters = ['1st Semester', '2nd Semester'];
+            $selectedSemester = isset($_GET['semester']) ? $_GET['semester'] : '';
+            foreach ($semesters as $semester) {
+                $selected = ($semester === $selectedSemester) ? 'selected' : '';
+                echo "<option value='$semester' $selected>$semester</option>";
+            }
+            ?>
+        </select>
             </form>
         </div>
 
@@ -130,7 +135,7 @@ include('./includes/topbar.php');
                         department ON employee.department = department.id
                     WHERE $whereClause
                     LIMIT $limit OFFSET $offset";
-
+                
                 $result = $con->query($sql);
 
                 if (!$result) {

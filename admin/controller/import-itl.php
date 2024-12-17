@@ -75,8 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file']) && isset($_PO
         $designated = ($designationLoadRelease == 0) ? 'Non-Designated' : 'Designated';
 
         $userId = (int)$_POST['userId'];
-        $academicYear = $_POST['academicYear'];  // Get academic year from POST
-        $semester = $_POST['semester'];  // Get semester from POST
+        $academicYear = $_POST['academicYear'];  
+        $semester = $_POST['semester']; 
 
         require_once '../config/config.php';
 

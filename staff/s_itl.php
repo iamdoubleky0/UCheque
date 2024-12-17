@@ -34,7 +34,6 @@ include('./includes/topbar.php');
             $page = max($page, 1);
             $offset = ($page - 1) * $limit;
 
-            // Updated total count query
             $totalQuery = "
                 SELECT 
                     COUNT(*) as total
