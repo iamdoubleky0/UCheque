@@ -9,20 +9,20 @@ include('./includes/topbar.php');
 
 <h3 class="main--title">Individual Teacher's Load</h3>
 
-<div class="add">
+<!-- <div class="add">
     <button class="btn-add" data-bs-toggle="modal" data-bs-target="#importModal">
         <i class='bx bxs-file-import'></i>
         <span class="text">Import ITL</span>
     </button>
-</div>
+</div>  // No import button for faculty -->
 
 <div class="table-container">
     <table>
         <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
+            <tr> <!--  display only the record of the loggedIn faculty -->
                 <th>Designation</th>
+                <th>Academic Year</th>
+                <th>Semester</th>
                 <th>Total Overload</th>
                 <th>Action</th>
             </tr>
@@ -61,21 +61,17 @@ include('./includes/topbar.php');
                     employee.firstName, 
                     employee.middleName, 
                     employee.lastName, 
-                    itl_extracted_data.totalOverload, 
-                    itl_extracted_data.id, 
-                    employee_role.role_id,
-                    itl_extracted_data.designated, 
-	                itl_extracted_data.userId
+                    itl_extracted_data.totalOverload,
+                    itl_extracted_data.designated,
+                    itl_extracted_data.userId,
+                    itl_extracted_data.academicYear,
+                    itl_extracted_data.semester
                 FROM
                     employee
                 INNER JOIN
-                    itl_extracted_data
-                ON 
-                    employee.userId = itl_extracted_data.userId
-                INNER JOIN
-                    employee_role
-                ON 
-                    employee.userId = employee_role.userId
+                    itl_extracted_data ON employee.userId = itl_extracted_data.userId
+                INNER JOIN 
+                    employee_role ON employee.userId = employee_role.userId
                 WHERE
                     employee_role.role_id = 2
                 LIMIT $limit OFFSET $offset
@@ -91,9 +87,9 @@ include('./includes/topbar.php');
                 while ($row = $result->fetch_assoc()) {
                     $fullName = trim($row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName']);
                     echo '<tr>
-                            <td>' . htmlspecialchars($row['employeeId']) . '</td>
-                            <td>' . htmlspecialchars($fullName) . '</td>
                             <td>' . htmlspecialchars($row['designated']) . '</td>
+                            <td>' . htmlspecialchars($row['academicYear']) . '</td>
+                            <td>' . htmlspecialchars($row['semester']) . '</td>
                             <td>' . htmlspecialchars($row['totalOverload']) . '</td>
                             <td>
                                 <a href="edit-act.php?employee_id=' . htmlspecialchars($row['userId']) . '" class="action">Download</a>

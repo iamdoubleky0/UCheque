@@ -60,7 +60,7 @@ include('./includes/topbar.php');
                         include '../config/config.php';
                         $limit = 5;
 
-                        $totalResult = $conn->query("SELECT COUNT(*) AS total FROM employee");
+                        $totalResult = $con->query("SELECT COUNT(*) AS total FROM employee");
                         $totalRows = $totalResult->fetch_assoc()['total'];
                         $totalPages = ceil($totalRows / $limit);
 
@@ -70,7 +70,7 @@ include('./includes/topbar.php');
                         $offset = ($page - 1) * $limit;
 
                         $sql = "SELECT employeeId, firstName, middleName, lastName, pdf_file_name FROM employee WHERE role = 'Faculty' LIMIT $limit OFFSET $offset" ;
-                        $result = $conn->query($sql);
+                        $result = $con->query($sql);
 
                         if ($result->num_rows > 0) {
                             while ($row = $result->fetch_assoc()) {
@@ -98,7 +98,7 @@ include('./includes/topbar.php');
                             echo '<tr><td colspan="7">No faculty members found.</td></tr>';
                         }
 
-                        $conn->close();
+                        $con->close();
                         ?>
                     </tbody>
                     </thead>

@@ -9,21 +9,21 @@ include('./includes/topbar.php');
 
 <h3 class="main--title">Daily Time Record</h3>
 
-<div class="add">
+<!-- <div class="add">
     <button class="btn-add" data-bs-toggle="modal" data-bs-target="#importModal">
         <i class='bx bxs-file-import'></i>
         <span class="text">Import DTR</span>
     </button>
-</div>
+</div>  // No import button for faculty -->
 
 <div class="table-container">
     <table>
         <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Designation</th>
-                <th>Total Overload</th>
+            <tr> <!--  display only the record of the loggedIn faculty -->
+                <th>Academic year</th>
+                <th>Semester</th>
+                <th>Month</th>
+                <th>Overload pay</th>
                 <th>Action</th>
             </tr>
         </thead>
@@ -65,18 +65,12 @@ include('./includes/topbar.php');
                         dtr_extracted_data.*
                     FROM
                         dtr_extracted_data
-                        INNER JOIN
-                        employee
-                        ON 
-                            dtr_extracted_data.userId = employee.userId
-                        INNER JOIN
-                        employee_role
-                        ON 
-                            employee.userId = employee_role.userId
-                    WHERE
-                        employee_role.role_id = 2
-                LIMIT $limit OFFSET $offset
+                    INNER JOIN employee ON dtr_extracted_data.userId = employee.userId
+                    INNER JOIN employee_role ON employee.userId = employee_role.userId
+                    WHERE employee_role.role_id = 2
+                    LIMIT $limit OFFSET $offset
             ";
+
             $result = $con->query($sql);
 
             if (!$result) {
@@ -87,8 +81,8 @@ include('./includes/topbar.php');
                 while ($row = $result->fetch_assoc()) {
                     $fullName = trim($row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName']);
                     echo '<tr>
-                            <td>' . htmlspecialchars($row['employeeId']) . '</td>
-                            <td>' . htmlspecialchars($fullName) . '</td>
+                            <td>' . htmlspecialchars($row['academic_years']) . '</td>
+                            <td>' . htmlspecialchars($row['semester']) . '</td>
                             <td>' . htmlspecialchars($row['designated']) . '</td>
                             <td>' . htmlspecialchars($row['totalOverload']) . '</td>
                             <td>
