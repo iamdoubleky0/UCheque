@@ -3,8 +3,7 @@ session_start();
 require '../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file']) && isset($_POST['userId']) && isset($_POST['academicYear']) && isset($_POST['semester'])) {
-
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'], $_POST['userId'], $_POST['academicYear'], $_POST['semester'])) {
     $file = $_FILES['file'];
     if ($file['error'] !== UPLOAD_ERR_OK) {
         $_SESSION['status'] = "File upload error";
@@ -67,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file']) && isset($_PO
             exit(0);
         }
 
-        $regularHours = 18; 
+        $regularHours = 18;
 
         $allowableUnit = $regularHours - $designationLoadRelease;
         $totalOverload = $facultyCredit - $allowableUnit;
@@ -75,19 +74,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file']) && isset($_PO
         $designated = ($designationLoadRelease == 0) ? 'Non-Designated' : 'Designated';
 
         $userId = (int)$_POST['userId'];
-        $academicYear = $_POST['academicYear'];  
-        $semester = $_POST['semester']; 
+        $academicYearId = (int)$_POST['academicYear'];
+        $semesterId = (int)$_POST['semester'];
 
         require_once '../config/config.php';
 
-        $sql = "INSERT INTO itl_extracted_data (userId, facultyCredit, designationLoadRelease, regularHours, totalOverload, designated, filePath, academicYear, semester)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO itl_extracted_data 
+                    (userId, facultyCredit, designationLoadRelease, regularHours, totalOverload, designated, filePath, academic_year_id, semester_id) 
+                VALUES 
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         if ($stmt = $con->prepare($sql)) {
-            $stmt->bind_param("idiidssss", $userId, $facultyCredit, $designationLoadRelease, $regularHours, $totalOverload, $designated, $filePath, $academicYear, $semester);
+            $stmt->bind_param(
+                "idiidssii",
+                $userId, $facultyCredit, $designationLoadRelease, $regularHours, $totalOverload, 
+                $designated, $filePath, $academicYearId, $semesterId
+            );
 
             if ($stmt->execute()) {
-                $_SESSION['status'] = "Data Import Successfully";
+                $_SESSION['status'] = "Data imported successfully";
                 $_SESSION['status_code'] = "success";
                 header('Location: ../itl.php');
                 exit(0);

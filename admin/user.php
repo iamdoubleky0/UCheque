@@ -1,11 +1,9 @@
 <?php
-// Include necessary files
 include('./includes/authentication.php');
 include('./includes/header.php');
 include('./includes/sidebar.php');
 include('./includes/topbar.php');
 
-// Check if there is a success or error message from the redirection
 if (isset($_GET['message'])) {
     echo '<div class="alert alert-success">' . htmlspecialchars($_GET['message']) . '</div>';
 } elseif (isset($_GET['error'])) {
@@ -31,42 +29,40 @@ if (isset($_GET['message'])) {
             </form>
         </div>
 
-       <!-- Import User Button -->
-    <button class="btn-add" data-bs-toggle="modal" data-bs-target="#importModal">
-        <i class='bx bxs-file-import'></i>
-        <span class="text">Import User</span>
-    </button>
+        <!-- Import User Button -->
+        <button class="btn-add" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class='bx bxs-file-import'></i>
+            <span class="text">Import User</span>
+        </button>
 
-    <!-- Modal for Importing Users -->
-    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="importModalLabel">Import User</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form action="controller/import-users.php" method="POST" enctype="multipart/form-data">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="importFile" class="form-label">Choose File</label>
-                            <input type="file" class="form-control" id="importFile" name="file" required>
+        <!-- Modal for Importing Users -->
+        <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importModalLabel">Import User</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="controller/import-users.php" method="POST" enctype="multipart/form-data">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="importFile" class="form-label">Choose File</label>
+                                <input type="file" class="form-control" id="importFile" name="file" required>
+                            </div>
                         </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Import</button>
-                    </div>
-                </form>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Import</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
-    </div>
-
         <a href="add-user.php" class="btn-add">
             <i class='bx bxs-user-plus'></i>
             <span class="text">Add User</span>
         </a>
     </div>
-
     <!-- Table for Users -->
     <div class="table-container">
         <table>
@@ -88,7 +84,6 @@ if (isset($_GET['message'])) {
                 $roleFilter = isset($_GET['role_filter']) ? $_GET['role_filter'] : null;
                 $searchTerm = isset($_GET['search_user']) ? "%" . $con->real_escape_string($_GET['search_user']) . "%" : "";
 
-                // Build role condition
                 $roleCondition = "";
                 if ($roleFilter && $roleFilter != 'ALL') {
                     $roleCondition = "AND employee.userId IN (
@@ -107,10 +102,8 @@ if (isset($_GET['message'])) {
                     ))";
                 }
 
-                // Build search condition
                 $searchCondition = $searchTerm ? "AND (employee.firstName LIKE '$searchTerm' OR employee.middleName LIKE '$searchTerm' OR employee.lastName LIKE '$searchTerm' OR employee.emailAddress LIKE '$searchTerm')" : "";
 
-                // Get total rows count
                 $totalResult = $con->query("SELECT COUNT(DISTINCT employee.userId) AS total
                     FROM employee
                     LEFT JOIN employee_role ON employee.userId = employee_role.userId
@@ -123,12 +116,10 @@ if (isset($_GET['message'])) {
                 $totalRows = $totalResult->fetch_assoc()['total'];
                 $totalPages = ceil($totalRows / $limit);
 
-                // Pagination logic
                 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
                 $page = max($page, 1);
                 $offset = ($page - 1) * $limit;
 
-                // Get filtered user data
                 $sql = "
                     SELECT 
                         employee.userId, 
@@ -158,7 +149,6 @@ if (isset($_GET['message'])) {
 
                 if ($result->num_rows > 0) {
                     while ($row = $result->fetch_assoc()) {
-                        // Get role names based on role_id
                         $roleNames = [];
                         $roles = explode(',', $row['roles']);
                         foreach ($roles as $role) {
@@ -179,7 +169,6 @@ if (isset($_GET['message'])) {
                         }
                         $roleList = implode(', ', $roleNames);
 
-                        // Display user information
                         $fullName = trim($row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName']);
                         echo '<tr>
                                 <td>' . htmlspecialchars($row['userId']) . '</td>
@@ -221,7 +210,6 @@ if (isset($_GET['message'])) {
             </tbody>
         </table>
 
-        <!-- Pagination -->
         <div class="pagination" id="pagination">
             <?php
             if ($totalPages > 1) {
@@ -243,7 +231,6 @@ if (isset($_GET['message'])) {
     </div>
 </div>
 
-<!-- Edit User Modal -->
 <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -253,39 +240,27 @@ if (isset($_GET['message'])) {
             </div>
             <form action="controller/edit-user.php" method="POST">
                 <div class="modal-body">
-                    <!-- User ID (Hidden Field) -->
                     <input type="hidden" id="editUserId" name="userId">
-
-                    <!-- First Name -->
                     <div class="mb-3">
                         <label for="editFirstName" class="form-label">First Name</label>
                         <input type="text" class="form-control" id="editFirstName" name="firstName" required>
                     </div>
-
-                    <!-- Middle Name -->
                     <div class="mb-3">
                         <label for="editMiddleName" class="form-label">Middle Name</label>
                         <input type="text" class="form-control" id="editMiddleName" name="middleName">
                     </div>
-
-                    <!-- Last Name -->
                     <div class="mb-3">
                         <label for="editLastName" class="form-label">Last Name</label>
                         <input type="text" class="form-control" id="editLastName" name="lastName" required>
                     </div>
-
-                    <!-- Email Address -->
                     <div class="mb-3">
                         <label for="editEmail" class="form-label">Email Address</label>
                         <input type="email" class="form-control" id="editEmail" name="emailAddress" required>
                     </div>
-
-                    <!-- Phone Number -->
                     <div class="mb-3">
                         <label for="editPhone" class="form-label">Phone Number</label>
                         <input type="text" class="form-control" id="editPhone" name="phoneNumber" required>
                     </div>
-
                     <div class="mb-3">
                         <label for="editRoles" class="form-label">Roles</label>
                         <select class="form-select" id="editRoles" name="roles[]" multiple>
@@ -295,18 +270,15 @@ if (isset($_GET['message'])) {
                         </select>
                     </div>
 
-                    <!-- Secondary role STAFF -->
                     <div class="mb-3">
                         <label for="staffRole" class="form-label">Apply as Staff</label>
                         <input type="radio" name="staffRole" value="multi-role" style="margin-left: 50px;"> 
                     </div>
                    
-                    <!-- Status -->
                     <div class="mb-3">
                         <label for="editStatus" class="form-label">Status</label>
                         <select class="form-select" id="editStatus" name="status" required>
                             <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
                             <option value="Archived">Archived</option>
                         </select>
                     </div>
@@ -320,7 +292,6 @@ if (isset($_GET['message'])) {
         </div>
     </div>
 </div>
-
 
 <!-- Archive Confirmation Modal -->
 <div class="modal fade" id="archiveConfirmModal" tabindex="-1" aria-labelledby="archiveConfirmModalLabel" aria-hidden="true">

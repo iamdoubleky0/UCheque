@@ -3,7 +3,6 @@
         <div class="header--title">
             <h2 style="font-weight: bold;">
                 <?php
-                // Set dynamic page titles based on the current file
                 $page = basename($_SERVER['PHP_SELF']);
                 switch ($page) {
                     case 'index.php':
@@ -20,6 +19,9 @@
                         break;
                     case 'overload.php':
                         echo 'Monthly Overload';
+                        break;
+                    case 'request.php':
+                        echo 'Request Overload';
                         break;
                     case 'reports.php':
                         echo 'Reports';

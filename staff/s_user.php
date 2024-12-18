@@ -1,17 +1,26 @@
 <?php
+// Include necessary files
 include('./includes/authentication.php');
 include('./includes/header.php');
 include('./includes/sidebar.php');
 include('./includes/topbar.php');
+
+// Check if there is a success or error message from the redirection
+if (isset($_GET['message'])) {
+    echo '<div class="alert alert-success">' . htmlspecialchars($_GET['message']) . '</div>';
+} elseif (isset($_GET['error'])) {
+    echo '<div class="alert alert-danger">' . htmlspecialchars($_GET['error']) . '</div>';
+}
 ?>
 
 <div class="tabular--wrapper">
     <div class="add">
         <div class="filter">
             <form method="GET" action="">
-            <input type="text" name="search_user" placeholder="Search user..." 
-              value="<?php echo isset($_GET['search_user']) ? htmlspecialchars($_GET['search_user']) : ''; ?>" 
-              style="width: 200px; margin-right: 10px;">
+                <!-- Search User Field -->
+                <input type="text" name="search_user" placeholder="Search user..." value="<?php echo isset($_GET['search_user']) ? htmlspecialchars($_GET['search_user']) : ''; ?>" style="width: 200px; margin-right: 10px;">
+                
+                <!-- Select Role Dropdown -->
                 <select name="role_filter" onchange="this.form.submit()" style="height: 43px; margin-right: 10px; width: 150px;">
                     <option value="" disabled selected>Select Role</option>
                     <option value="ALL" <?php if (isset($_GET['role_filter']) && $_GET['role_filter'] == 'ALL') echo 'selected'; ?>>All</option>
@@ -22,18 +31,14 @@ include('./includes/topbar.php');
             </form>
         </div>
 
-        <button class="btn-add" data-bs-toggle="modal" data-bs-target="#importModal">
-          <i class='bx bxs-file-import'></i>
-          <span class="text">Import User</span>
-      </button>
-        <a href="s_add-user.php" class="btn-add">
-            <i class='bx bxs-user-plus'></i>
-            <span class="text">Add User</span>
-        </a>
-    </div>
+       <!-- Import User Button -->
+    <button class="btn-add" data-bs-toggle="modal" data-bs-target="#importModal">
+        <i class='bx bxs-file-import'></i>
+        <span class="text">Import User</span>
+    </button>
 
-     <!-- Modal for Importing Users -->
-     <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <!-- Modal for Importing Users -->
+    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -55,7 +60,14 @@ include('./includes/topbar.php');
             </div>
         </div>
     </div>
-    
+
+        <a href="add-user.php" class="btn-add">
+            <i class='bx bxs-user-plus'></i>
+            <span class="text">Add User</span>
+        </a>
+    </div>
+
+    <!-- Table for Users -->
     <div class="table-container">
         <table>
             <thead>
@@ -70,143 +82,146 @@ include('./includes/topbar.php');
                 </tr>
             </thead>
             <tbody>
-              <?php
-              $userId = $_SESSION['auth_user']['userId'];
-              $limit = 10;
-              $roleFilter = isset($_GET['role_filter']) ? $_GET['role_filter'] : null;
-              $searchTerm = isset($_GET['search_user']) ? "%" . $con->real_escape_string($_GET['search_user']) . "%" : "";
+                <?php
+                $userId = $_SESSION['auth_user']['userId'];
+                $limit = 10;
+                $roleFilter = isset($_GET['role_filter']) ? $_GET['role_filter'] : null;
+                $searchTerm = isset($_GET['search_user']) ? "%" . $con->real_escape_string($_GET['search_user']) . "%" : "";
 
-              if ($roleFilter && $roleFilter != 'ALL') {
-                $roleCondition = "AND employee.userId IN (
-                    SELECT userId 
-                    FROM employee_role 
-                    WHERE role_id = $roleFilter
-                )";
-              } else {
-                  $roleCondition = "";
-              }
-              
-              $searchCondition = $searchTerm ? "AND (employee.firstName LIKE '$searchTerm' OR employee.middleName LIKE '$searchTerm' OR employee.lastName LIKE '$searchTerm' OR employee.emailAddress LIKE '$searchTerm')" : "";
+                // Build role condition
+                $roleCondition = "";
+                if ($roleFilter && $roleFilter != 'ALL') {
+                    $roleCondition = "AND employee.userId IN (
+                        SELECT userId 
+                        FROM employee_role 
+                        WHERE role_id = $roleFilter
+                    )";
+                } else {
+                    $roleCondition = "AND (employee.userId NOT IN (
+                        SELECT userId 
+                        FROM employee_role 
+                        WHERE role_id = 1
+                    ) OR employee.userId NOT IN (
+                        SELECT userId 
+                        FROM employee_role
+                    ))";
+                }
 
-              $totalResult = $con->query("SELECT COUNT(DISTINCT employee.userId) AS total
-                  FROM employee
-                  LEFT JOIN employee_role ON employee.userId = employee_role.userId
-                  WHERE 1 $roleCondition");
+                // Build search condition
+                $searchCondition = $searchTerm ? "AND (employee.firstName LIKE '$searchTerm' OR employee.middleName LIKE '$searchTerm' OR employee.lastName LIKE '$searchTerm' OR employee.emailAddress LIKE '$searchTerm')" : "";
 
-              if (!$totalResult) {
-                  die("Error fetching total count: " . $con->error);
-              }
+                // Get total rows count
+                $totalResult = $con->query("SELECT COUNT(DISTINCT employee.userId) AS total
+                    FROM employee
+                    LEFT JOIN employee_role ON employee.userId = employee_role.userId
+                    WHERE 1 $roleCondition $searchCondition");
 
-              $totalRows = $totalResult->fetch_assoc()['total'];
-              $totalPages = ceil($totalRows / $limit);
+                if (!$totalResult) {
+                    die("Error fetching total count: " . $con->error);
+                }
 
-              $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-              $page = max($page, 1);
-              $offset = ($page - 1) * $limit;
+                $totalRows = $totalResult->fetch_assoc()['total'];
+                $totalPages = ceil($totalRows / $limit);
 
-              $sql = "
-              SELECT 
-                  employee.userId, 
-                  employee.employeeId, 
-                  employee.firstName, 
-                  employee.middleName, 
-                  employee.lastName, 
-                  employee.phoneNumber, 
-                  employee.emailAddress, 
-                  GROUP_CONCAT(employee_role.role_id) AS roles, 
-                  employee.status
-              FROM 
-                  employee
-              LEFT JOIN 
-                  employee_role ON employee.userId = employee_role.userId
-              WHERE 
-                  1 
-                  $roleCondition 
-                  $searchCondition
-                  AND employee.userId != $userId
-                  AND employee.userId NOT IN (
-                      SELECT userId FROM employee_role WHERE role_id = 1
-                  )
-              GROUP BY 
-                  employee.userId 
-              LIMIT $limit OFFSET $offset
-              ";
-          
-              $result = $con->query($sql);
+                // Pagination logic
+                $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+                $page = max($page, 1);
+                $offset = ($page - 1) * $limit;
 
-              if (!$result) {
-                  die("Error executing query: " . $con->error);
-              }
+                // Get filtered user data
+                $sql = "
+                    SELECT 
+                        employee.userId, 
+                        employee.employeeId, 
+                        employee.firstName, 
+                        employee.middleName, 
+                        employee.lastName, 
+                        employee.phoneNumber, 
+                        employee.emailAddress, 
+                        GROUP_CONCAT(employee_role.role_id) AS roles, 
+                        employee.status
+                    FROM 
+                        employee
+                    LEFT JOIN 
+                        employee_role ON employee.userId = employee_role.userId
+                    WHERE 
+                        1 $roleCondition $searchCondition AND employee.userId != $userId
+                    GROUP BY 
+                        employee.userId 
+                    LIMIT $limit OFFSET $offset
+                ";
+                $result = $con->query($sql);
 
-              if ($result->num_rows > 0) {
-                  while ($row = $result->fetch_assoc()) {
-                      $roleNames = [];
-                      $roles = explode(',', $row['roles']);
-                      $isHR = false; 
-                      foreach ($roles as $role) {
-                          switch ($role) {
-                              case '2':
-                                  $roleNames[] = 'Faculty';
-                                  break;
-                              case '3':
-                                  $roleNames[] = 'HR';
-                                  $isHR = true; 
-                                  break;
-                              case '4':
-                                  $roleNames[] = 'Staff';
-                                  break;
-                              default:
-                                  $roleNames[] = 'No Assigned Role';
-                                  break;
-                          }
-                      }
-                      $roleList = implode(', ', $roleNames);
+                if (!$result) {
+                    die("Error executing query: " . $con->error);
+                }
 
-                      $fullName = trim($row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName']);
-                      echo '<tr>
-                              <td>' . htmlspecialchars($row['userId']) . '</td>
-                              <td>' . htmlspecialchars($fullName) . '</td>
-                              <td>' . htmlspecialchars($row['emailAddress']) . '</td>
-                              <td>' . htmlspecialchars($row['phoneNumber']) . '</td>
-                              <td><span class="status">' . htmlspecialchars($roleList) . '</span></td>
-                              <td><span class="status">' . htmlspecialchars($row['status']) . '</span></td>
-                              <td>';
+                if ($result->num_rows > 0) {
+                    while ($row = $result->fetch_assoc()) {
+                        // Get role names based on role_id
+                        $roleNames = [];
+                        $roles = explode(',', $row['roles']);
+                        foreach ($roles as $role) {
+                            switch ($role) {
+                                case '2':
+                                    $roleNames[] = 'Faculty';
+                                    break;
+                                case '3':
+                                    $roleNames[] = 'HR';
+                                    break;
+                                case '4':
+                                    $roleNames[] = 'Staff';
+                                    break;
+                                default:
+                                    $roleNames[] = 'No Assigned Role';
+                                    break;
+                            }
+                        }
+                        $roleList = implode(', ', $roleNames);
 
-                      if (!$isHR) {
-                          echo '<a href="javascript:void(0);" 
-                                    class="action" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#editUserModal"
-                                    data-userid="' . htmlspecialchars($row['userId']) . '"
-                                    data-firstname="' . htmlspecialchars($row['firstName']) . '"
-                                    data-middlename="' . htmlspecialchars($row['middleName']) . '"
-                                    data-lastname="' . htmlspecialchars($row['lastName']) . '"
-                                    data-email="' . htmlspecialchars($row['emailAddress']) . '"
-                                    data-phone="' . htmlspecialchars($row['phoneNumber']) . '"
-                                    data-roles="' . htmlspecialchars($roleList) . '"
-                                    data-status="' . htmlspecialchars($row['status']) . '"
-                                >
-                                    Edit
-                                </a>
-                                <a href="javascript:void(0);" 
-                                    class="action" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#archiveConfirmModal"
-                                    data-userid="' . htmlspecialchars($row['userId']) . '"
-                                >
-                                    Archive
-                                </a>';
-                      }
-                      echo '</td>
-                            </tr>';
-                  }
-              } else {
-                  echo '<tr><td colspan="7">No users found.</td></tr>';
-              }
-              ?>
-          </tbody>
+                        // Display user information
+                        $fullName = trim($row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName']);
+                        echo '<tr>
+                                <td>' . htmlspecialchars($row['userId']) . '</td>
+                                <td>' . htmlspecialchars($fullName) . '</td>
+                                <td>' . htmlspecialchars($row['emailAddress']) . '</td>
+                                <td>' . htmlspecialchars($row['phoneNumber']) . '</td>
+                                <td>' . htmlspecialchars($roleList) . '</td>
+                                <td>' . htmlspecialchars($row['status']) . '</td>
+                                <td>
+                                    <a href="javascript:void(0);" 
+                                        class="action" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#editUserModal"
+                                        data-userid="' . htmlspecialchars($row['userId']) . '"
+                                        data-firstname="' . htmlspecialchars($row['firstName']) . '"
+                                        data-middlename="' . htmlspecialchars($row['middleName']) . '"
+                                        data-lastname="' . htmlspecialchars($row['lastName']) . '"
+                                        data-email="' . htmlspecialchars($row['emailAddress']) . '"
+                                        data-phone="' . htmlspecialchars($row['phoneNumber']) . '"
+                                        data-roles="' . htmlspecialchars($roleList) . '" 
+                                        data-status="' . htmlspecialchars($row['status']) . '">
+                                        Edit
+                                      </a>
+                                    <a href="javascript:void(0);" 
+                                       class="action archive" 
+                                       style="color: initial;" 
+                                       data-bs-toggle="modal" 
+                                       data-bs-target="#archiveConfirmModal" 
+                                       data-userid="' . htmlspecialchars($row['userId'], ENT_QUOTES, 'UTF-8') . '">
+                                       Archive
+                                    </a>
+                                </td>
+                              </tr>';
+                    }
+                } else {
+                    echo '<tr><td colspan="7">No users found.</td></tr>';
+                }
+                ?>
+            </tbody>
         </table>
 
+        <!-- Pagination -->
         <div class="pagination" id="pagination">
             <?php
             if ($totalPages > 1) {
@@ -280,8 +295,8 @@ include('./includes/topbar.php');
                         </select>
                     </div>
 
-                     <!-- Secondary role STAFF -->
-                     <div class="mb-3">
+                    <!-- Secondary role STAFF -->
+                    <div class="mb-3">
                         <label for="staffRole" class="form-label">Apply as Staff</label>
                         <input type="radio" name="staffRole" value="multi-role" style="margin-left: 50px;"> 
                     </div>
@@ -306,23 +321,24 @@ include('./includes/topbar.php');
     </div>
 </div>
 
+
 <!-- Archive Confirmation Modal -->
 <div class="modal fade" id="archiveConfirmModal" tabindex="-1" aria-labelledby="archiveConfirmModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="archiveConfirmModalLabel">Confirm Archive</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        Are you sure you want to archive this user?
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" id="archiveBtn" class="btn btn-danger">Archive</button>
-      </div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="archiveConfirmModalLabel">Confirm Archive</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to archive this user?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="javascript:void(0);" id="archiveConfirmBtn" class="btn btn-danger">Archive</a>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 
 <?php include('./includes/footer.php'); ?>

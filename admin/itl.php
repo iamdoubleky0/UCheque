@@ -1,5 +1,4 @@
 <?php
-// Include necessary files
 include('./includes/authentication.php');
 include('./includes/header.php');
 include('./includes/sidebar.php');
@@ -15,29 +14,33 @@ include('./includes/topbar.php');
                        style="width: 200px; margin-right: 10px;" 
                        onkeydown="if(event.key === 'Enter') this.form.submit();">
 
-                       <select name="academic_year" style="width: 200px; margin-right: 10px;">
-            <option value="" selected>Select Academic Year</option>
-            <?php
-            $years = ['2024-2025', '2025-2026', '2026-2027', '2027-2028', '2028-2029', '2029-2030'];
-            $selectedYear = isset($_GET['academic_year']) ? $_GET['academic_year'] : '';
-            foreach ($years as $year) {
-                $selected = ($year === $selectedYear) ? 'selected' : '';
-                echo "<option value='$year' $selected>$year</option>";
-            }
-            ?>
-        </select>
+                <select name="academic_year_id" onchange="this.form.submit()" style="width: 200px; margin-right: 10px;">
+                    <option value="" selected>Select Academic Year</option>
+                    <?php
+                    $academicYearQuery = "SELECT academic_year_id, academic_year FROM academic_years";
+                    $academicYearResult = $con->query($academicYearQuery);
+                    if ($academicYearResult && $academicYearResult->num_rows > 0) {
+                        while ($row = $academicYearResult->fetch_assoc()) {
+                            $selected = (isset($_GET['academic_year_id']) && $_GET['academic_year_id'] == $row['academic_year_id']) ? 'selected' : '';
+                            echo "<option value='{$row['academic_year_id']}' $selected>{$row['academic_year']}</option>";
+                        }
+                    }
+                    ?>
+                </select>
 
-                <select name="semester" style="width: 200px; margin-right: 10px;">
-            <option value="" selected>Select Semester</option>
-            <?php
-            $semesters = ['1st Semester', '2nd Semester'];
-            $selectedSemester = isset($_GET['semester']) ? $_GET['semester'] : '';
-            foreach ($semesters as $semester) {
-                $selected = ($semester === $selectedSemester) ? 'selected' : '';
-                echo "<option value='$semester' $selected>$semester</option>";
-            }
-            ?>
-        </select>
+                <select name="semester_id" onchange="this.form.submit()" style="width: 200px; margin-right: 10px;">
+                    <option value="" selected>Select Semester</option>
+                    <?php
+                    $semesterQuery = "SELECT semester_id, semester_name FROM semesters";
+                    $semesterResult = $con->query($semesterQuery);
+                    if ($semesterResult && $semesterResult->num_rows > 0) {
+                        while ($row = $semesterResult->fetch_assoc()) {
+                            $selected = (isset($_GET['semester_id']) && $_GET['semester_id'] == $row['semester_id']) ? 'selected' : '';
+                            echo "<option value='{$row['semester_id']}' $selected>{$row['semester_name']}</option>";
+                        }
+                    }
+                    ?>
+                </select>
             </form>
         </div>
 
@@ -53,7 +56,6 @@ include('./includes/topbar.php');
                 <tr>
                     <th>No.</th>
                     <th>Name</th>
-                    <th>Department</th>
                     <th>Designation</th>
                     <th>Academic Year</th>
                     <th>Semester</th>
@@ -63,34 +65,31 @@ include('./includes/topbar.php');
             </thead>
             <tbody>
                 <?php
-                $limit = 10;
+                $limit = 20;
                 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
                 $page = max($page, 1);
                 $offset = ($page - 1) * $limit;
 
-                // Get filter inputs
                 $search_user = isset($_GET['search_user']) ? $con->real_escape_string($_GET['search_user']) : '';
-                $academic_year = isset($_GET['academic_year']) ? $con->real_escape_string($_GET['academic_year']) : '';
-                $semester = isset($_GET['semester']) ? $con->real_escape_string($_GET['semester']) : '';
+                $academic_year_id = isset($_GET['academic_year_id']) ? $con->real_escape_string($_GET['academic_year_id']) : '';
+                $semester_id = isset($_GET['semester_id']) ? $con->real_escape_string($_GET['semester_id']) : '';
 
-                // Build the WHERE clause dynamically
                 $whereClauses = ["employee_role.role_id = 2"];
 
                 if (!empty($search_user)) {
                     $whereClauses[] = "(employee.firstName LIKE '%$search_user%' OR employee.lastName LIKE '%$search_user%')";
                 }
 
-                if (!empty($academic_year)) {
-                    $whereClauses[] = "itl_extracted_data.academicYear = '$academic_year'";
+                if (!empty($academic_year_id)) {
+                    $whereClauses[] = "itl_extracted_data.academic_year_id = '$academic_year_id'";
                 }
 
-                if (!empty($semester)) {
-                    $whereClauses[] = "itl_extracted_data.semester = '$semester'";
+                if (!empty($semester_id)) {
+                    $whereClauses[] = "itl_extracted_data.semester_id = '$semester_id'";
                 }
 
                 $whereClause = implode(' AND ', $whereClauses);
 
-                // Count total rows for pagination
                 $totalQuery = "
                     SELECT COUNT(*) as total
                     FROM employee
@@ -99,99 +98,80 @@ include('./includes/topbar.php');
                     WHERE $whereClause";
 
                 $totalResult = $con->query($totalQuery);
-                if (!$totalResult) {
-                    die("Error executing query: " . $con->error);
-                }
-                $totalRow = $totalResult->fetch_assoc();
-                $totalRows = isset($totalRow['total']) ? (int)$totalRow['total'] : 0;
+                $totalRows = $totalResult->fetch_assoc()['total'] ?? 0;
                 $totalPages = ceil($totalRows / $limit);
 
-                // Main data query with filtering
                 $sql = "
                     SELECT
                         employee.employeeId,
                         employee.firstName,
                         employee.middleName,
                         employee.lastName,
-                        CASE 
-                            WHEN department.departmentName = 'Information Technology' THEN 'IT'
-                            WHEN department.departmentName = 'Technology Communication Management' THEN 'TCM'
-                            WHEN department.departmentName = 'Computer Science' THEN 'CS'
-                            WHEN department.departmentName = 'Data Science' THEN 'DS'
-                            ELSE department.departmentName
-                        END AS departmentAcronym,
                         itl_extracted_data.totalOverload,
                         itl_extracted_data.designated,
-                        itl_extracted_data.userId,
-                        itl_extracted_data.academicYear,
-                        itl_extracted_data.semester
+                        academic_years.academic_year,
+                        semesters.semester_name,
+                        itl_extracted_data.filePath
                     FROM
                         employee
-                    LEFT JOIN
-                        itl_extracted_data ON employee.userId = itl_extracted_data.userId
-                    LEFT JOIN
-                        employee_role ON employee.userId = employee_role.userId
-                    LEFT JOIN
-                        department ON employee.department = department.id
+                    LEFT JOIN itl_extracted_data ON employee.userId = itl_extracted_data.userId
+                    LEFT JOIN employee_role ON employee.userId = employee_role.userId
+                    LEFT JOIN academic_years ON itl_extracted_data.academic_year_id = academic_years.academic_year_id
+                    LEFT JOIN semesters ON itl_extracted_data.semester_id = semesters.semester_id
                     WHERE $whereClause
                     LIMIT $limit OFFSET $offset";
-                
+
                 $result = $con->query($sql);
 
-                if (!$result) {
-                    die("Error executing query: " . $con->error);
-                }
-
-                $counter = $offset;
-
-                if ($result->num_rows > 0) {
+                if ($result && $result->num_rows > 0) {
+                    $counter = $offset;
                     while ($row = $result->fetch_assoc()) {
                         $counter++;
                         $fullName = trim($row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName']);
-                        $totalOverload = (isset($row['totalOverload']) && $row['totalOverload'] <= 0) ? "No overload" : htmlspecialchars($row['totalOverload']);
+                        $totalOverload = ($row['totalOverload'] <= 0) ? "No overload" : htmlspecialchars($row['totalOverload']);
+                        
+                        $filePath = htmlspecialchars($row['filePath']);
+                        $downloadLink = !empty($filePath) ? 'uploads/' . $filePath : '#';
+                        $downloadDisabled = empty($filePath) ? 'style="pointer-events: none; color: gray;"' : '';
+
                         echo "<tr>
                                 <td>$counter</td>
-                                <td>" . htmlspecialchars($fullName) . "</td>
-                                <td>" . htmlspecialchars($row['departmentAcronym']) . "</td>
+                                <td>$fullName</td>
                                 <td>" . htmlspecialchars($row['designated']) . "</td>
-                                <td>" . htmlspecialchars($row['academicYear']) . "</td>
-                                <td>" . htmlspecialchars($row['semester']) . "</td>
+                                <td>" . htmlspecialchars($row['academic_year']) . "</td>
+                                <td>" . htmlspecialchars($row['semester_name']) . "</td>
                                 <td>$totalOverload</td>
                                 <td>
-                                    <a href='edit-act.php?employee_id=" . htmlspecialchars($row['userId']) . "' class='action'>Download</a>
-                                    <a href='#1' class='action'>Delete</a>
+                                    <a href='$downloadLink' class='action' download $downloadDisabled>Download</a>
+                                    <a href='controller/delete-itl.php' class='action'>Delete</a>
                                 </td>
-                              </tr>";
+                            </tr>";
                     }
                 } else {
-                    echo '<tr><td colspan="8">No users found.</td></tr>';
+                    echo "<tr><td colspan='7'>No users found.</td></tr>";
                 }
                 ?>
             </tbody>
         </table>
 
-        <div class="pagination" id="pagination">
+        <div class="pagination">
             <?php
-            $paginationUrl = "?search_user=$search_user&academic_year=$academic_year&semester=$semester&page=";
-
             if ($totalPages > 1) {
-                echo '<a href="' . $paginationUrl . '1" class="pagination-button">&laquo;</a>';
-                $prevPage = max(1, $page - 1);
-                echo '<a href="' . $paginationUrl . $prevPage . '" class="pagination-button">&lsaquo;</a>';
-
                 for ($i = 1; $i <= $totalPages; $i++) {
-                    $activeClass = ($i == $page) ? 'active' : '';
-                    echo '<a href="' . $paginationUrl . $i . '" class="pagination-button ' . $activeClass . '">' . $i . '</a>';
+                    $active = ($i == $page) ? 'active' : '';
+                    $queryString = http_build_query(array_merge($_GET, ['page' => $i]));
+                    echo "<a href='?$queryString' class='pagination-button $active'>$i</a>";
                 }
-
-                $nextPage = min($totalPages, $page + 1);
-                echo '<a href="' . $paginationUrl . $nextPage . '" class="pagination-button">&rsaquo;</a>';
-                echo '<a href="' . $paginationUrl . $totalPages . '" class="pagination-button">&raquo;</a>';
             }
             ?>
         </div>
     </div>
 </div>
+
+<?php
+include('./includes/footer.php');
+?>
+
 
 <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
   <div class="modal-dialog">
@@ -208,7 +188,6 @@ include('./includes/topbar.php');
             <select class="form-control" id="userId" name="userId" required>
               <option value="" disabled selected>---Select User---</option>
               <?php
-                // Updated query to select Faculty users only
                 $query = "SELECT employee.userId, employee.employeeId, employee.firstName, employee.middleName, employee.lastName 
                           FROM employee 
                           INNER JOIN employee_role ON employee.userId = employee_role.userId
@@ -228,24 +207,24 @@ include('./includes/topbar.php');
           </div>
 
           <div class="mb-3">
-            <label for="academic_year" class="form-label">Select Academic Year</label>
+            <label for="academicYear" class="form-label">Select Academic Year</label>
             <select class="form-control" id="academicYear" name="academicYear" required>
-            <option value="" selected>Select Academic Year</option>
-                <option value="2019-2020">2024-2025</option>
-                <option value="2020-2021">2025-2026</option>
-                <option value="2021-2022">2026-2027</option>
-                <option value="2022-2023">2027-2028</option>
-                <option value="2023-2024">2028-2029</option>
-                <option value="2024-2025">2029-2030</option>
+              <option value="" selected>Select Academic Year</option>
+              <option value="1">2024-2025</option>
+              <option value="2">2025-2026</option>
+              <option value="3">2026-2027</option>
+              <option value="4">2027-2028</option>
+              <option value="5">2028-2029</option>
+              <option value="6">2029-2030</option>
             </select>
           </div>
 
           <div class="mb-3">
             <label for="semester" class="form-label">Select Semester</label>
             <select class="form-control" id="semester" name="semester" required>
-            <option value="" selected>Select Semester</option>
-                <option value="1st Semester">1st Semester</option>
-                <option value="2nd Semester">2nd Semester</option>
+              <option value="" selected>Select Semester Year</option>
+              <option value="1">1st Semester</option>
+              <option value="2">2nd Semester</option>
             </select>
           </div>
 
@@ -255,7 +234,7 @@ include('./includes/topbar.php');
           </div>
           
           <div class="text-end">
-            <button type="submit" class="btn btn-primary">Import Users</button>
+            <button type="submit" class="btn btn-primary">Import file</button>
           </div>
         </form>
       </div>
@@ -263,6 +242,4 @@ include('./includes/topbar.php');
   </div>
 </div>
 
-<?php
-include('./includes/footer.php');
-?>
+<?php include('./includes/footer.php'); ?>

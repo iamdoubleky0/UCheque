@@ -8,6 +8,12 @@ include('./includes/topbar.php');
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
 <div class="tabular--wrapper">
+
+    <h3 class="main--title">Request DTR</h3>
+    <div class="add">
+       
+    </div>
+
     <div class="table-container">
         <table class="table">
             <thead>

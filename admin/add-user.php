@@ -13,28 +13,8 @@ include('./includes/topbar.php');
 
                 <div class="form-row mt-4">
                     <div class="form-group col-md-6">
-                        <label for="employeeId">Employee ID</label>
+                        <label for="employeeId">User ID</label>
                         <input type="text" class="form-control" id="employeeId" name="employeeId" placeholder="Enter Employee ID" required>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="firstName">First Name</label>
-                        <input type="text" class="form-control" id="firstName" name="firstName" placeholder="Enter First Name" required>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="middlename">Middle Name <span style="font-size: 0.85em;">(Optional)</span></label>
-                        <input type="text" class="form-control" id="middlename" name="middleName" placeholder="Enter Middle Name">
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="lastname">Last Name</label>
-                        <input type="text" class="form-control" id="lastname" name="lastName" placeholder="Enter Last Name" required>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="email">Email</label>
-                        <input type="email" class="form-control" id="email" name="emailAddress" placeholder="Enter Email" required>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="contact">Phone Number</label>
-                        <input type="text" class="form-control" id="contact" name="phoneNumber" placeholder="Enter Contact Number">
                     </div>
                     <div class="form-group col-md-6">
                         <label for="role">Account Role</label>
@@ -45,7 +25,26 @@ include('./includes/topbar.php');
                             <option value="3">HR</option>
                         </select>
                     </div>
-
+                    <div class="form-group col-md-6">
+                        <label for="firstName">First Name</label>
+                        <input type="text" class="form-control" id="firstName" name="firstName" placeholder="Enter First Name" required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="lastname">Last Name</label>
+                        <input type="text" class="form-control" id="lastname" name="lastName" placeholder="Enter Last Name" required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="middlename">Middle Name <span style="font-size: 0.85em;">(Optional)</span></label>
+                        <input type="text" class="form-control" id="middlename" name="middleName" placeholder="Enter Middle Name">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="email">Email</label>
+                        <input type="email" class="form-control" id="email" name="emailAddress" placeholder="Enter Email" required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="contact">Phone Number</label>
+                        <input type="text" class="form-control" id="contact" name="phoneNumber" placeholder="Enter Contact Number">
+                    </div>
                     <div class="form-group col-md-6">
                         <label for="department">Department <span style="font-size: 0.85em;">(Optional)</span></label>
                         <select class="form-select" name="department" id="departmentSelect" aria-label="select department">
@@ -56,19 +55,15 @@ include('./includes/topbar.php');
                             <option value="4">Data Science</option>
                         </select>
                     </div>
-
-                    <!-- Radio buttons for Faculty -->
                     <div class="form-group col-md-6" id="facultyRole" style="display: none;">
-                        <label for="facultyRoleRadio" class="form-label">Apply as Faculty</label>
-                        <input type="radio" name="staffRole" value="faculty" style="margin-left: 80px;">
+                        <label for="facultyRoleCheckbox" class="form-label">Apply for Faculty (additional role)</label>
+                        <input type="checkbox" name="staffRole[]" value="faculty" id="facultyRoleCheckbox" style="margin-left: 50px;">
                     </div>
 
-                    <!-- Radio buttons for Staff -->
                     <div class="form-group col-md-6" id="staffRole" style="display: none;">
-                        <label for="staffRoleRadio" class="form-label">Apply as Staff</label>
-                        <input type="radio" name="staffRole" value="staff" style="margin-left: 80px;">
+                        <label for="staffRoleCheckbox" class="form-label">Apply for Staff (additional role)</label>
+                        <input type="checkbox" name="staffRole[]" value="staff" id="staffRoleCheckbox" style="margin-left: 50px;">
                     </div>
-
                     <div class="form-group col-md-6">
                         <label for="profilePicture">Profile Picture</label>
                         <input type="file" class="form-control" id="profilePicture" name="profilePicture" accept="image/*" onchange="previewImage(event)">
@@ -76,7 +71,6 @@ include('./includes/topbar.php');
                     </div>
                 </div>
             </div>
-
             <div class="form-row">
                 <div class="col-md-12 text-end">
                     <button type="submit" name="addUser" class="btn btn-primary">Save</button>
@@ -92,7 +86,6 @@ include('./includes/footer.php');
 ?>
 
 <script>
-   
     document.getElementById('roleSelect').addEventListener('change', function () {
         var role = this.value;
         var departmentSelect = document.getElementById('departmentSelect');
@@ -112,9 +105,9 @@ include('./includes/footer.php');
     });
 
     document.getElementById('roleSelect').addEventListener('change', function() {
-    var role = this.value;
-    var facultyRole = document.getElementById('facultyRole');
-    var staffRole = document.getElementById('staffRole');
+        var role = this.value;
+        var facultyRole = document.getElementById('facultyRole');
+        var staffRole = document.getElementById('staffRole');
 
         if (role === "2") {
             facultyRole.style.display = 'none';
@@ -122,12 +115,9 @@ include('./includes/footer.php');
         } else if (role === "4") {
             staffRole.style.display = 'none';
             facultyRole.style.display = 'block';
-        }else {
+        } else {
             facultyRole.style.display = 'none';
             staffRole.style.display = 'none';
         }
-
     });
-
-
 </script>

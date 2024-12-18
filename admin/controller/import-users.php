@@ -26,13 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
             die("Connection failed: " . $conn->connect_error);
         }
 
-        // Prepare the SQL statement to insert the employee
         $stmt = $conn->prepare("
             INSERT INTO employee (employeeId, lastName, firstName, emailAddress, password, department)
             VALUES (?, ?, ?, ?, ?, ?)
         ");
 
-        // Prepare the SQL statement to insert roles
         $roleStmt = $conn->prepare("
             INSERT INTO employee_role (userId, role_id)
             VALUES (?, ?)
@@ -46,11 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
             4 => 'Data Science'
         ];
 
+        // Define faculty role ID
         $facultyRoleId = 2;
         $missingData = false;
 
         foreach ($rows as $index => $row) {
             if ($index === 0) continue; 
+
             $facultyId = trim($row[0]);  
             $lastName = trim($row[1]);   
             $firstName = trim($row[2]); 
@@ -59,45 +59,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
 
             // Check if any required data is missing
             if (empty($facultyId) || empty($lastName) || empty($firstName) || empty($email) || empty($departmentName)) {
-                $missingData = true; // Set the flag to true
-                break; // Stop processing further if missing data
+                $missingData = true; 
+                break; 
             }
 
             // Check if department is valid
             $departmentId = array_search($departmentName, $departments);
-            if ($departmentId === false) { // Department is invalid
-                // Set to default (Information Technology)
-                $departmentId = 1; 
+            if ($departmentId === false) {
+                $departmentId = null;
             }
 
-            // Generate the password (LastName + Faculty_ID)
             $password = $lastName . $facultyId;
             
-            // Hash the password
             $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
 
-            // Check if the employee already exists in the database
             $checkStmt = $conn->prepare("SELECT * FROM employee WHERE employeeId = ?");
             $checkStmt->bind_param('s', $facultyId);
             $checkStmt->execute();
             $result = $checkStmt->get_result();
+
             if ($result->num_rows === 0) {
-                // No duplicate found, insert the new record
                 $stmt->bind_param(
                     'sssssi',
-                    $facultyId, // employeeId
-                    $lastName, // lastName
-                    $firstName, // firstName
-                    $email, // emailAddress
-                    $hashedPassword, // password (hashed)
-                    $departmentId // department
+                    $facultyId, 
+                    $lastName, 
+                    $firstName, 
+                    $email, 
+                    $hashedPassword,
+                    $departmentId 
                 );
                 $stmt->execute();
 
-                // Get the inserted user ID
                 $userId = $stmt->insert_id;
 
-                // Insert the Faculty role for the user
                 $roleStmt->bind_param('ii', $userId, $facultyRoleId);
                 $roleStmt->execute();
             }
@@ -105,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
         }
 
         if ($missingData) {
-            $_SESSION['status'] = "The file is missing required data.";
+            $_SESSION['status'] = "Invalid data, the file is missing required data.";
             $_SESSION['status_code'] = "error";
             header('Location: ../user.php');
             exit(0);
@@ -122,7 +116,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
         exit(0);
 
     } catch (Exception $e) {
-        echo "Error: " . $e->getMessage();
+        $_SESSION['status'] = "Error: " . $e->getMessage();
+        $_SESSION['status_code'] = "error";
+        header('Location: ../user.php');
+        exit(0);
     }
 }
 ?>

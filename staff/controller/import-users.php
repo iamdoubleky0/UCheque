@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     if (!in_array($fileType, ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])) {
         $_SESSION['status'] = "Invalid file type. Please upload an Excel file.";
         $_SESSION['status_code'] = "error";
-        header('Location: ../user.php');
+        header('Location: ../s_user.php');
         exit(0);
     }
 
@@ -46,11 +46,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
             4 => 'Data Science'
         ];
 
+        // Define faculty role ID
         $facultyRoleId = 2;
         $missingData = false;
 
         foreach ($rows as $index => $row) {
-            if ($index === 0) continue; 
+            if ($index === 0) continue; // Skip header row
+
+            // Get data from the spreadsheet row
             $facultyId = trim($row[0]);  
             $lastName = trim($row[1]);   
             $firstName = trim($row[2]); 
@@ -81,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
             $checkStmt->bind_param('s', $facultyId);
             $checkStmt->execute();
             $result = $checkStmt->get_result();
+
             if ($result->num_rows === 0) {
                 // No duplicate found, insert the new record
                 $stmt->bind_param(
@@ -104,16 +108,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
             $checkStmt->close();
         }
 
+        // If any missing data found, show error
         if ($missingData) {
             $_SESSION['status'] = "The file is missing required data.";
             $_SESSION['status_code'] = "error";
-            header('Location: ../user.php');
+            header('Location: ../s_user.php');
             exit(0);
         }
 
         $_SESSION['status'] = "Data successfully imported.";
         $_SESSION['status_code'] = "success";
 
+        // Close prepared statements and database connection
         $stmt->close();
         $roleStmt->close();
         $conn->close();
@@ -122,7 +128,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
         exit(0);
 
     } catch (Exception $e) {
-        echo "Error: " . $e->getMessage();
+        $_SESSION['status'] = "Error: " . $e->getMessage();
+        $_SESSION['status_code'] = "error";
+        header('Location: ../s_user.php');
+        exit(0);
     }
 }
 ?>

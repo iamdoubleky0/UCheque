@@ -226,15 +226,18 @@ include('./includes/topbar.php');
                             <?php echo ($weekOverloads > 0) ? $weekOverloads : '0'; ?>
                         </td>
                         <td>
-                        <a href="<?php echo htmlspecialchars('/UCheque/uploads/' . $row['filePath']); ?>" download>Download</a>
-                            <a href="#" onclick="confirmDelete(<?php echo $row['id']; ?>)">Delete</a>
+                            <?php 
+                            $filePath = htmlspecialchars($row['filePath']);
+                            $downloadLink = !empty($filePath) ? '/UCheque/uploads/' . $filePath : '#';
+                            $downloadDisabled = empty($filePath) ? 'style="pointer-events: none; color: gray;"' : '';
+                            ?>
+                            <a href="<?php echo $downloadLink; ?>" class="action" download <?php echo $downloadDisabled; ?>>Download</a>
+                            <a href="#" onclick="confirmDelete(<?php echo $row['id']; ?>)" class="action">Delete</a>
                         </td>
                     </tr>
                     <?php endwhile; ?>
                 </tbody>
             </table>
-
-
         <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
