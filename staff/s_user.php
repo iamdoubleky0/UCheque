@@ -230,50 +230,80 @@ include('./includes/topbar.php');
 
 <!-- Edit User Modal -->
 <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="editUserModalLabel">Edit User Data</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form action="update_user.php" method="POST">
-          <input type="hidden" id="userId" name="userId">
-          <div class="mb-3">
-            <label for="firstName" class="form-label">First Name</label>
-            <input type="text" class="form-control" id="firstName" name="firstName" required>
-          </div>
-          <div class="mb-3">
-            <label for="middleName" class="form-label">Middle Name</label>
-            <input type="text" class="form-control" id="middleName" name="middleName">
-          </div>
-          <div class="mb-3">
-            <label for="lastName" class="form-label">Last Name</label>
-            <input type="text" class="form-control" id="lastName" name="lastName" required>
-          </div>
-          <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
-            <input type="email" class="form-control" id="email" name="email" required>
-          </div>
-          <div class="mb-3">
-            <label for="phone" class="form-label">Phone Number</label>
-            <input type="text" class="form-control" id="phone" name="phone">
-          </div>
-          <div class="mb-3">
-            <label for="roles" class="form-label">Roles</label>
-            <input type="text" class="form-control" id="roles" name="roles" readonly>
-          </div>
-          <div class="mb-3">
-            <label for="status" class="form-label">Status</label>
-            <input type="text" class="form-control" id="status" name="status" required>
-          </div>
-          <div class="text-end">
-            <button type="submit" class="btn btn-primary">Save Changes</button>
-          </div>
-        </form>
-      </div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="controller/edit-user.php" method="POST">
+                <div class="modal-body">
+                    <!-- User ID (Hidden Field) -->
+                    <input type="hidden" id="editUserId" name="userId">
+
+                    <!-- First Name -->
+                    <div class="mb-3">
+                        <label for="editFirstName" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="editFirstName" name="firstName" required>
+                    </div>
+
+                    <!-- Middle Name -->
+                    <div class="mb-3">
+                        <label for="editMiddleName" class="form-label">Middle Name</label>
+                        <input type="text" class="form-control" id="editMiddleName" name="middleName">
+                    </div>
+
+                    <!-- Last Name -->
+                    <div class="mb-3">
+                        <label for="editLastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="editLastName" name="lastName" required>
+                    </div>
+
+                    <!-- Email Address -->
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="editEmail" name="emailAddress" required>
+                    </div>
+
+                    <!-- Phone Number -->
+                    <div class="mb-3">
+                        <label for="editPhone" class="form-label">Phone Number</label>
+                        <input type="text" class="form-control" id="editPhone" name="phoneNumber" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editRoles" class="form-label">Roles</label>
+                        <select class="form-select" id="editRoles" name="roles[]" multiple>
+                            <option value="2">Faculty</option>
+                            <option value="3">HR</option>
+                            <option value="4">Staff</option>
+                        </select>
+                    </div>
+
+                     <!-- Secondary role STAFF -->
+                     <div class="mb-3">
+                        <label for="staffRole" class="form-label">Apply as Staff</label>
+                        <input type="radio" name="staffRole" value="multi-role" style="margin-left: 50px;"> 
+                    </div>
+                   
+                    <!-- Status -->
+                    <div class="mb-3">
+                        <label for="editStatus" class="form-label">Status</label>
+                        <select class="form-select" id="editStatus" name="status" required>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
     </div>
-  </div>
 </div>
 
 <!-- Archive Confirmation Modal -->

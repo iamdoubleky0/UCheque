@@ -3,118 +3,63 @@ include('./includes/authentication.php');
 include('./includes/header.php');
 include('./includes/sidebar.php');
 include('./includes/topbar.php');
+
+// Function to get the count of employees by role
+function getEmployeeCountByRole($con, $roleId) {
+    $query = "SELECT COUNT(*) as total FROM employee 
+              INNER JOIN employee_role ON employee.userId = employee_role.userId 
+              WHERE employee_role.role_id = ?";
+    
+    $stmt = mysqli_prepare($con, $query);
+    mysqli_stmt_bind_param($stmt, 'i', $roleId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    
+    if ($row = mysqli_fetch_assoc($result)) {
+        return $row['total'];
+    } else {
+        return 0;
+    }
+}
+
+// Define role IDs
+define('STAFF_ROLE_ID', 4);
+define('FACULTY_ROLE_ID', 2);
+define('HR_ROLE_ID', 3);
+
+// Get counts
+$staff_total = getEmployeeCountByRole($con, STAFF_ROLE_ID);
+$faculty_total = getEmployeeCountByRole($con, FACULTY_ROLE_ID);
+$hr_total = getEmployeeCountByRole($con, HR_ROLE_ID);
 ?>
 
-            <div class="card--container">
-              <h3 class="main--title"> Accounts </h3>
+<div class="card--container">
+    <h3 class="main--title">Accounts</h3>
+    <ul class="box-info">
+        <li>
+            <i class='bx bxs-group'></i>
+            <span class="text">
+                <h3><?php echo $staff_total; ?></h3>
+                <p>Staff</p>
+            </span>
+        </li>
+        <li>
+            <i class='bx bxs-group'></i>
+            <span class="text">
+                <h3><?php echo $faculty_total; ?></h3>
+                <p>Faculty</p>
+            </span>
+        </li>
+        <li>
+            <i class='bx bxs-group'></i>
+            <span class="text">
+                <h3><?php echo $hr_total; ?></h3>
+                <p>HR</p>
+            </span>
+        </li>
+    </ul>
+</div>
 
-              <ul class="box-info">
-                <li>
-                    <i class='bx bxs-group'></i>
-                    <span class="text">
-                        <h3></h3>
-                        <p>Staff</p>
-                        <?php
-
-                                    $staff = "SELECT
-                                        employee.*, 
-                                        employee_role.role_id
-                                      FROM
-                                        employee
-                                        INNER JOIN
-                                        employee_role
-                                        ON 
-                                          employee.userId = employee_role.userId
-                                      WHERE
-                                        employee_role.role_id = 4";
-                                    $staff_run = mysqli_query($con, $staff);
-
-
-                                    if($staff_total = mysqli_num_rows($staff_run))
-                                    {
-                                    echo '<h6 class="mb-0"> '.$staff_total.' </h1>';
-                                    }else
-                                    {
-                                    echo '<h6 class="mb-0">0</h6>';
-                                    }
-
-
-                         ?>
-                    </span>
-                </li>
-                <li>
-                    <i class='bx bxs-group'></i>
-                    <span class="text">
-                        <h3></h3>
-                        <p>Faculty</p>
-
-                        <?php
-
-                          $faculty = "SELECT
-                              employee.*, 
-                              employee_role.role_id
-                            FROM
-                              employee
-                              INNER JOIN
-                              employee_role
-                              ON 
-                                employee.userId = employee_role.userId
-                            WHERE
-                              employee_role.role_id = 2";
-                          $faculty_run = mysqli_query($con, $faculty);
-
-
-                          if($faculty_total = mysqli_num_rows($faculty_run))
-                          {
-                          echo '<h6 class="mb-0"> '.$faculty_total.' </h1>';
-                          }else
-                          {
-                          echo '<h6 class="mb-0">0</h6>';
-                          }
-
-
-                          ?>
-
-                    </span>
-                </li>
-                <li>
-                    <i class='bx bxs-group'></i>
-                    <span class="text">
-                        <h3></h3>
-                        <p>HR</p>
-
-                        <?php
-
-                          $hr = "SELECT
-                              employee.*, 
-                              employee_role.role_id
-                            FROM
-                              employee
-                              INNER JOIN
-                              employee_role
-                              ON 
-                                employee.userId = employee_role.userId
-                            WHERE
-                              employee_role.role_id = 3";
-                          $hr_run = mysqli_query($con, $hr);
-
-
-                          if($hr_total = mysqli_num_rows($hr_run))
-                          {
-                          echo '<h6 class="mb-0"> '.$hr_total.' </h1>';
-                          }else
-                          {
-                          echo '<h6 class="mb-0">0</h1>';
-                          }
-
-
-                          ?>
-
-                    </span>
-                </li>
-            </ul>
-
-            </div>
 <div class="table-data">
     <div class="order">
         <div class="hero">
@@ -169,11 +114,4 @@ include('./includes/topbar.php');
     </div>
 </div>
 
-</div>
-       
-<?php
-include('./includes/footer.php');
-?>
-    
-
-    
+<?php include('./includes/footer.php'); ?>

@@ -57,6 +57,18 @@ include('./includes/topbar.php');
                         </select>
                     </div>
 
+                    <!-- Radio buttons for Faculty -->
+                    <div class="form-group col-md-6" id="facultyRole" style="display: none;">
+                        <label for="facultyRoleRadio" class="form-label">Apply as Faculty</label>
+                        <input type="radio" name="staffRole" value="faculty" style="margin-left: 80px;">
+                    </div>
+
+                    <!-- Radio buttons for Staff -->
+                    <div class="form-group col-md-6" id="staffRole" style="display: none;">
+                        <label for="staffRoleRadio" class="form-label">Apply as Staff</label>
+                        <input type="radio" name="staffRole" value="staff" style="margin-left: 80px;">
+                    </div>
+
                     <div class="form-group col-md-6">
                         <label for="profilePicture">Profile Picture</label>
                         <input type="file" class="form-control" id="profilePicture" name="profilePicture" accept="image/*" onchange="previewImage(event)">
@@ -98,5 +110,24 @@ include('./includes/footer.php');
             departmentSelect.value = ''; 
         }
     });
+
+    document.getElementById('roleSelect').addEventListener('change', function() {
+    var role = this.value;
+    var facultyRole = document.getElementById('facultyRole');
+    var staffRole = document.getElementById('staffRole');
+
+        if (role === "2") {
+            facultyRole.style.display = 'none';
+            staffRole.style.display = 'block';
+        } else if (role === "4") {
+            staffRole.style.display = 'none';
+            facultyRole.style.display = 'block';
+        }else {
+            facultyRole.style.display = 'none';
+            staffRole.style.display = 'none';
+        }
+
+    });
+
 
 </script>

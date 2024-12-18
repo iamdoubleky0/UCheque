@@ -4,34 +4,7 @@ include('./includes/header.php');
 include('./includes/sidebar.php');
 include('./includes/topbar.php');
 ?>
-            <div class="card--container">
-              <h3 class="main--title"> Accounts </h3>
-
-              <ul class="box-info">
-                <li>
-                    <i class='bx bxs-group'></i>
-                    <span class="text">
-                        <h3></h3>
-                        <p>Staff</p>
-                    </span>
-                </li>
-                <li>
-                    <i class='bx bxs-group'></i>
-                    <span class="text">
-                        <h3></h3>
-                        <p>Faculty</p>
-                    </span>
-                </li>
-                <li>
-                    <i class='bx bxs-group'></i>
-                    <span class="text">
-                        <h3></h3>
-                        <p>HR</p>
-                    </span>
-                </li>
-              </ul>
-            </div>
-
+          
             <div class="table-data">
               <div class="order">
                 <!-- insert calendar here -->

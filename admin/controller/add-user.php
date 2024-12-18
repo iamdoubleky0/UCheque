@@ -10,6 +10,7 @@ if (isset($_POST['addUser'])) {
     $phoneNumber = isset($_POST['phoneNumber']) ? $_POST['phoneNumber'] : null;
     $emailAddress = $_POST['emailAddress'];
     $roles = isset($_POST['role']) ? $_POST['role'] : [];
+    $staffRole = isset($_POST['staffRole']) ? $_POST['staffRole'] : '';
     $profilePicture = null;
     // $department = isset($_POST['department']) ? $_POST['department'] : null; // department can be null if not required
 
@@ -85,6 +86,18 @@ if (isset($_POST['addUser'])) {
                 }
             }
         }
+
+        $staffRole = $_POST['staffRole'] ?? null;
+        if ($staffRole) {
+            $staffRoleId = 4; 
+            $insertStaffRoleQuery = "INSERT INTO employee_role (userId, role_id) VALUES (?, ?)";
+            $stmtStaffInsert = $con->prepare($insertStaffRoleQuery);
+            $stmtStaffInsert->bind_param('ii', $userId, $staffRoleId);
+            $stmtStaffInsert->execute();
+            $stmtStaffInsert->close();
+
+        }
+    
 
         $_SESSION['status'] = "Employee has been added successfully!";
         $_SESSION['status_code'] = "success";
