@@ -30,12 +30,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
 
             $days = [];
             $totals = [];
+            $remarks = [];
 
             for ($row = 10; $row <= 40; $row++) {
                 $day = $sheet->getCell("A$row")->getValue();
                 $total = $sheet->getCell("G$row")->getValue();
+                $remark = $sheet->getCell("J$row")->getValue(); 
                 $days[] = $day;
                 $totals[] = $total;
+                $remarks[] = $remark;
             }
 
             function convertToDecimal($time) {
@@ -45,15 +48,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
             $weekTotals = [];
             $weekCount = 1;
             $weekSum = 0;
+            $firstMondayFound = false;
+            $firstMondayIndex = null;
 
             foreach ($totals as $index => $total) {
-                $totalDecimal = convertToDecimal($total);
-                $weekSum += (float)$totalDecimal; 
-                if (($index + 1) % 7 == 0 || $index == count($totals) - 1) {
-                    $weekTotals["week$weekCount"] = $weekSum;
-                    $weekCount++;
-                    $weekSum = 0; 
+                $isMonday = stripos($days[$index], 'M') !== false;
+
+                if ($isMonday && !$firstMondayFound) {
+                    $firstMondayFound = true;
+                    $firstMondayIndex = $index;
                 }
+
+                if ($firstMondayFound) {
+                    if ($remarks[$index] !== "Sunday") {
+                        $totalDecimal = convertToDecimal($total);
+                        
+                        if (in_array($remarks[$index], ["On Travel", "Health Break", "Holiday"])) {
+                            $totalDecimal = 8.00;
+                        }
+                        
+                        $weekSum += (float)$totalDecimal; 
+                    }
+
+                    if (($index + 1 - $firstMondayIndex) % 7 == 0) {
+                        $weekTotals["week$weekCount"] = $weekSum;
+                        $weekCount++;
+                        $weekSum = 0; 
+                    }
+                }
+            }
+
+            if ($weekSum > 0 && $firstMondayFound) {
+                $weekTotals["week$weekCount"] = $weekSum;
             }
 
             $overallTotal = 0;
@@ -61,14 +87,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
                 $overallTotal += $weekTotal;
             }
 
+            $maxHours = 40; 
+            $creditThreshold = 12;
+            $weekOverloads = [];
+            $totalCredits = 0;
+            
             $userId = $_POST['userId'];
+            $stmt = $con->prepare("SELECT COALESCE(totalOverload, 0) AS totalOverload FROM itl_extracted_data WHERE userId = ?");
+            $stmt->bind_param("i", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $totalOverloadRow = $result->fetch_assoc();
+            $totalOverload = $totalOverloadRow['totalOverload'] ?? 0;
+            $stmt->close();
+            
+            foreach ($weekTotals as $key => $weekHours) {
+                $overload = $weekHours > $maxHours ? round($weekHours - $maxHours, 2) : 0;
+                
+                if ($overload > 0) {
+                    $weekOverloads[$key . '_overload'] = min($overload, $totalOverload);
+                    
+                    if ($overload > $creditThreshold) {
+                        $totalCredits += round($overload - $creditThreshold, 2); 
+                    }
+                } else {
+                    $weekOverloads[$key . '_overload'] = 0;
+                }
+            }
+            
+            $overloadPay = array_sum($weekOverloads);
+
+            
             $academicYearId = $_POST['academic_year_id'];
             $semesterId = $_POST['semester_id'];
 
             $dateCreated = date('Y-m-d H:i:s');
 
-            $query = "INSERT INTO dtr_extracted_data (userId, academic_year_id, semester_id, week1, week2, week3, week4, week5, overall_total, filePath, dateCreated, month_year)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $query = "INSERT INTO dtr_extracted_data (
+                userId, academic_year_id, semester_id, 
+                week1, week2, week3, week4, week5, 
+                week1_overload, week2_overload, week3_overload, week4_overload, 
+                overall_total, total_credits, overload_pay, filePath, dateCreated, month_year
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            
 
             $stmt = $con->prepare($query);
 
@@ -76,18 +137,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
                 die('Error preparing statement: ' . $con->error);
             }
 
-            $stmt->bind_param("iiidddddddss", $userId, $academicYearId, $semesterId, 
-            $weekTotals['week1'], $weekTotals['week2'], 
-            $weekTotals['week3'], $weekTotals['week4'], 
-            $weekTotals['week5'], $overallTotal, $filePath, $dateCreated, $monthYear);
+            $weeks = array_pad(array_values($weekTotals), 5, 0);
+            $weekOverloads = array_pad(array_values($weekOverloads), 4, 0);
 
+            $stmt->bind_param("iiiddddddddddddsss", 
+            $userId, $academicYearId, $semesterId, 
+            $weeks[0], $weeks[1], $weeks[2], $weeks[3], $weeks[4], 
+            $weekOverloads[0], $weekOverloads[1], $weekOverloads[2], $weekOverloads[3],
+            $overallTotal, $totalCredits, $overloadPay, $filePath, $dateCreated, $monthYear
+        );
+        
             $executeResult = $stmt->execute();
 
             if ($executeResult) {
-                $_SESSION['success_message'] = "DTR imported successfully!";
+                $_SESSION['success_message'] = "DTR imported successfully with overload pay!";
                 header("Location: ../dtr.php");
                 exit();
-            }            
+            } else {
+                error_log('Execute error: ' . $stmt->error);
+                $_SESSION['error_message'] = "Error importing DTR: " . $stmt->error;
+                header("Location: ../dtr.php");
+                exit();
+            }
+              
 
             $stmt->close();
         } else {

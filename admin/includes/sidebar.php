@@ -9,6 +9,7 @@
             <li><a href="dtr.php"><i class='bx bxs-time'></i><span>Faculty DTR</span></a></li>
             <li><a href="overload.php"><i class="bx bxs-user-check"></i><span>Overload Summary</span></a></li>
             <li><a href="reports.php"><i class='bx bxs-book-alt'></i><span>Generate Reports</span></a></li>
+            <li><a href="request.php"><i class='bx bxs-file-plus'></i><span>Request Overload</span></a></li>
             <?php if(isset($user_roles) && count($user_roles) > 1) { ?>
             <li class="switch"> <a href="../loginas.php"><i class='bx bx-code'></i><span>switch</span></a></li>
             <?php } ?>

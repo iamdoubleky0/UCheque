@@ -2,116 +2,170 @@
 session_start();
 require '../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
+require '../../config/config.php';
 
-function saveWeeklySummaryToDatabase($filePath, $employeeName, $dbConnection) {
-    try {
-        $spreadsheet = IOFactory::load($filePath);
-        $sheet = $spreadsheet->getActiveSheet();
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
+    $file = $_FILES['file'];
 
-        $rows = $sheet->toArray(null, true, true, true);
-        $weeklyData = [];
-        $currentWeekStart = null;
-        $currentWeekTotal = 0;
+    if ($file['error'] == 0) {
+        $originalFileName = basename($file['name']);
+        $fileExtension = pathinfo($originalFileName, PATHINFO_EXTENSION);
 
-        foreach ($rows as $row) {
-            if (empty($row['A']) || empty($row['G']) || !is_numeric($row['G'])) {
-                continue;
+        $newFileName = time() . '-' . uniqid() . '.' . $fileExtension;
+        
+        $uploadDirectory = '../../uploads/'; 
+        
+        if (!is_dir($uploadDirectory)) {
+            mkdir($uploadDirectory, 0777, true); 
+        }
+
+        $filePath = $uploadDirectory . $newFileName;
+
+        if (move_uploaded_file($file['tmp_name'], $filePath)) {
+            $spreadsheet = IOFactory::load($filePath);
+            $sheet = $spreadsheet->getActiveSheet();
+
+            $monthYear = $sheet->getCell("G5")->getValue();
+            $monthYear = str_replace("Month/Year: ", "", $monthYear);
+
+            $days = [];
+            $totals = [];
+            $remarks = [];
+
+            for ($row = 10; $row <= 40; $row++) {
+                $day = $sheet->getCell("A$row")->getValue();
+                $total = $sheet->getCell("G$row")->getValue();
+                $remark = $sheet->getCell("J$row")->getValue(); 
+                $days[] = $day;
+                $totals[] = $total;
+                $remarks[] = $remark;
             }
 
-            $date = \DateTime::createFromFormat('m/d/Y', $row['A']);
-            $total = floatval($row['G']);
-
-            if (!$date) {
-                continue;
+            function convertToDecimal($time) {
+                return str_replace(":", ".", $time); 
             }
 
-            $dayOfWeek = $date->format('N');
+            $weekTotals = [];
+            $weekCount = 1;
+            $weekSum = 0;
+            $firstMondayFound = false;
+            $firstMondayIndex = null;
 
-            if ($dayOfWeek == 1) {
-                if ($currentWeekStart !== null) {
-                    $weeklyData[] = [
-                        'start' => $currentWeekStart,
-                        'end' => $date->modify('-1 day')->format('Y-m-d'),
-                        'total' => $currentWeekTotal
-                    ];
+            foreach ($totals as $index => $total) {
+                $isMonday = stripos($days[$index], 'M') !== false;
+
+                if ($isMonday && !$firstMondayFound) {
+                    $firstMondayFound = true;
+                    $firstMondayIndex = $index;
                 }
-                $currentWeekStart = $date->format('Y-m-d');
-                $currentWeekTotal = $total;
-            } else {
-                $currentWeekTotal += $total;
+
+                if ($firstMondayFound) {
+                    if ($remarks[$index] !== "Sunday") {
+                        $totalDecimal = convertToDecimal($total);
+                        
+                        if (in_array($remarks[$index], ["On Travel", "Health Break", "Holiday"])) {
+                            $totalDecimal = 8.00;
+                        }
+                        
+                        $weekSum += (float)$totalDecimal; 
+                    }
+
+                    if (($index + 1 - $firstMondayIndex) % 7 == 0) {
+                        $weekTotals["week$weekCount"] = $weekSum;
+                        $weekCount++;
+                        $weekSum = 0; 
+                    }
+                }
             }
-        }
 
-        if ($currentWeekStart !== null) {
-            $weeklyData[] = [
-                'start' => $currentWeekStart,
-                'end' => $date->format('Y-m-d'),
-                'total' => $currentWeekTotal
-            ];
-        }
+            if ($weekSum > 0 && $firstMondayFound) {
+                $weekTotals["week$weekCount"] = $weekSum;
+            }
 
-        foreach ($weeklyData as $week) {
-            $monthYear = date('Y-m', strtotime($week['start']));
+            $overallTotal = 0;
+            foreach ($weekTotals as $weekTotal) {
+                $overallTotal += $weekTotal;
+            }
 
-            $stmt = $dbConnection->prepare("
-                INSERT INTO weekly_dtr_summary (employee_name, week_start, week_end, total_hours, month_year) 
-                VALUES (?, ?, ?, ?, ?)
-            ");
-
-            $stmt->bind_param(
-                "sssds",
-                $employeeName,
-                $week['start'],
-                $week['end'],
-                $week['total'],
-                $monthYear
-            );
-
+            $maxHours = 40; 
+            $creditThreshold = 12;
+            $weekOverloads = [];
+            $totalCredits = 0;
+            
+            $userId = $_POST['userId'];
+            $stmt = $con->prepare("SELECT COALESCE(totalOverload, 0) AS totalOverload FROM itl_extracted_data WHERE userId = ?");
+            $stmt->bind_param("i", $userId);
             $stmt->execute();
-        }
-    } catch (Exception $e) {
-        $_SESSION['status'] = 'Error processing file: ' . $e->getMessage();
-        $_SESSION['status_code'] = "error";
-        header('Location: ../dtr.php');
-        exit;
-    }
-}
+            $result = $stmt->get_result();
+            $totalOverloadRow = $result->fetch_assoc();
+            $totalOverload = $totalOverloadRow['totalOverload'] ?? 0;
+            $stmt->close();
+            
+            foreach ($weekTotals as $key => $weekHours) {
+                $overload = $weekHours > $maxHours ? round($weekHours - $maxHours, 2) : 0;
+                
+                if ($overload > 0) {
+                    $weekOverloads[$key . '_overload'] = min($overload, $totalOverload);
+                    
+                    if ($overload > $creditThreshold) {
+                        $totalCredits += round($overload - $creditThreshold, 2); 
+                    }
+                } else {
+                    $weekOverloads[$key . '_overload'] = 0;
+                }
+            }
+            
+            $overloadPay = array_sum($weekOverloads);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['files'])) {
-    $uploadDir = '../../uploads/';
-    $dbConnection = new mysqli('localhost', 'username', 'password', 'database_name');
+            
+            $academicYearId = $_POST['academic_year_id'];
+            $semesterId = $_POST['semester_id'];
 
-    if ($dbConnection->connect_error) {
-        $_SESSION['status'] = 'Database connection failed: ' . $dbConnection->connect_error;
-        $_SESSION['status_code'] = "error";
-        header('Location: ../dtr.php');
-        exit;
-    }
+            $dateCreated = date('Y-m-d H:i:s');
 
-    foreach ($_FILES['files']['tmp_name'] as $index => $tmpName) {
-        $fileName = $_FILES['files']['name'][$index];
-        $employeeName = pathinfo($fileName, PATHINFO_FILENAME);
-        $filePath = $uploadDir . basename($fileName);
+            $query = "INSERT INTO dtr_extracted_data (
+                userId, academic_year_id, semester_id, 
+                week1, week2, week3, week4, week5, 
+                week1_overload, week2_overload, week3_overload, week4_overload, 
+                overall_total, total_credits, overload_pay, filePath, dateCreated, month_year
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            
 
-        if (move_uploaded_file($tmpName, $filePath)) {
-            saveWeeklySummaryToDatabase($filePath, $employeeName, $dbConnection);
+            $stmt = $con->prepare($query);
+
+            if (!$stmt) {
+                die('Error preparing statement: ' . $con->error);
+            }
+
+            $weeks = array_pad(array_values($weekTotals), 5, 0);
+            $weekOverloads = array_pad(array_values($weekOverloads), 4, 0);
+
+            $stmt->bind_param("iiiddddddddddddsss", 
+            $userId, $academicYearId, $semesterId, 
+            $weeks[0], $weeks[1], $weeks[2], $weeks[3], $weeks[4], 
+            $weekOverloads[0], $weekOverloads[1], $weekOverloads[2], $weekOverloads[3],
+            $overallTotal, $totalCredits, $overloadPay, $filePath, $dateCreated, $monthYear
+        );
+        
+            $executeResult = $stmt->execute();
+
+            if ($executeResult) {
+                $_SESSION['success_message'] = "DTR imported successfully with overload pay!";
+                header("Location: ../s_dtr.php");
+                exit();
+            } else {
+                error_log('Execute error: ' . $stmt->error);
+                $_SESSION['error_message'] = "Error importing DTR: " . $stmt->error;
+                header("Location: ../s_dtr.php");
+                exit();
+            }
+            
+            $stmt->close();
         } else {
-            $_SESSION['status'] = 'Error uploading file: ' . $fileName;
-            $_SESSION['status_code'] = "error";
-            header('Location: ../dtr.php');
-            exit;
+            echo "Error uploading file!";
         }
+    } else {
+        echo "Error uploading file!";
     }
-
-    $dbConnection->close();
-    $_SESSION['status'] = 'Data uploaded successfully!';
-    $_SESSION['status_code'] = "success";
-    header('Location: ../dtr.php');
-    exit;
-} else {
-    $_SESSION['status'] = 'Invalid request.';
-    $_SESSION['status_code'] = "error";
-    header('Location: ../dtr.php');
-    exit;
 }
 ?>

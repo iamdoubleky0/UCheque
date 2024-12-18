@@ -9,7 +9,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
     if ($stmt === false) {
         die("Error preparing query: " . $con->error);
-    }
+    }   
 
     $stmt->bind_param("i", $id);
 
@@ -22,6 +22,7 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 
     $stmt->close();
 }
+
 
 include('./includes/header.php');
 include('./includes/sidebar.php');
@@ -88,6 +89,7 @@ include('./includes/topbar.php');
             <i class='bx bxs-file-import'></i>
             <span class="text">Import DTR</span>
         </button>
+
         </div>
         <div class="table-container">
             <?php
@@ -96,19 +98,22 @@ include('./includes/topbar.php');
             $semester = isset($_GET['semester']) ? $_GET['semester'] : '';
 
             $maxHours = 40; 
-
+            $creditThreshold = 12;
+            
             $query = "SELECT d.id, d.userId, d.academic_year_id, d.semester_id, 
-                            d.week1, d.week2, d.week3, d.week4, d.week5, d.overall_total, 
-                            d.fileName, d.month_year, 
-                            e.firstName, e.middleName, e.lastName, e.employeeId,
-                            a.academic_year, s.semester_name, 
-                            COALESCE(itl.totalOverload, 0) AS totalOverload
-                    FROM dtr_extracted_data d
-                    JOIN employee e ON d.userId = e.userId
-                    JOIN academic_years a ON d.academic_year_id = a.academic_year_id
-                    JOIN semesters s ON d.semester_id = s.semester_id
-                    LEFT JOIN itl_extracted_data itl ON d.userId = itl.userId
-                    WHERE 1=1";
+                d.week1, d.week2, d.week3, d.week4, d.week5, d.overall_total, 
+                d.filePath, d.month_year, 
+                e.firstName, e.middleName, e.lastName, e.employeeId,
+                a.academic_year, s.semester_name, 
+                COALESCE(itl.totalOverload, 0) AS totalOverload,
+                itl.designated,
+                d.week1_overload, d.week2_overload, d.week3_overload, d.week4_overload
+            FROM dtr_extracted_data d
+            JOIN employee e ON d.userId = e.userId
+            JOIN academic_years a ON d.academic_year_id = a.academic_year_id
+            JOIN semesters s ON d.semester_id = s.semester_id
+            LEFT JOIN itl_extracted_data itl ON d.userId = itl.userId
+            WHERE 1=1";
 
             if (!empty($search_user)) {
                 $search_user = $con->real_escape_string($search_user);
@@ -138,6 +143,7 @@ include('./includes/topbar.php');
                     <tr>
                         <th>Employee ID</th>
                         <th>Name</th>
+                        <th>Designation</th>
                         <th>Semester/A.Y</th>
                         <th>Month/Year</th>
                         <th>Week 1</th>
@@ -145,6 +151,7 @@ include('./includes/topbar.php');
                         <th>Week 3</th>
                         <th>Week 4</th>
                         <th>Total Credits</th>
+                        <th>Overload</th> 
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -171,56 +178,61 @@ include('./includes/topbar.php');
                                 $excess[$key] = 0;
                             }
                         }
+
+                        $totalCredits = 0;
+                        $weekOverloads = 0;
+
+                        foreach (['week1_overload', 'week2_overload', 'week3_overload', 'week4_overload'] as $week) {
+                            $weekOverloads += $row[$week];
+                            if ($row[$week] > 12) {
+                                $totalCredits += ($row[$week] - 12);
+                            }
+                        }
+
+                        if ($totalCredits > 0) {
+                            $weekOverloads -= $totalCredits;
+                            if ($weekOverloads < 0) {
+                                $weekOverloads = 0;
+                            }
+                        }
                     ?>
+
                     <tr>
                         <td><?php echo htmlspecialchars($row['employeeId']); ?></td>
                         <td><?php echo htmlspecialchars($row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName']); ?></td>
+                        <td><?php echo htmlspecialchars($row['designated']); ?></td>
                         <td><?php echo htmlspecialchars($row['semester_name'] . ' ' . $row['academic_year']); ?></td>
                         <td><?php echo htmlspecialchars($row['month_year']); ?></td>
                         <td>
-            
-                        <strong>Total Overload:</strong> 
-                        <?php 
-                        echo ($excess['week1'] <= 0) ? $overload['week1'] : $totalOverload; 
-                        ?> <br>
-                    </td>
-                    <td>
-                        <?php 
-                        echo ($excess['week2'] <= 0) ? $overload['week2'] : $totalOverload; 
-                        ?> <br>
-                    </td>
-                    <td>
-                        <strong>Total Overload:</strong> 
-                        <?php 
-                        echo ($excess['week3'] <= 0) ? $overload['week3'] : $totalOverload; 
-                        ?> <br>
-                    </td>
-                    <td>
-                        <strong>Total Overload:</strong> 
-                        <?php 
-                        echo ($excess['week4'] <= 0) ? $overload['week4'] : $totalOverload; 
-                        ?> <br>
-                    <td>
-                        <?php
-                        $totalCredits = 
-                        (($overload['week1'] - floor($overload['week1'])) +
-                        ($overload['week2'] - floor($overload['week2'])) +
-                        ($overload['week3'] - floor($overload['week3'])) +
-                        ($overload['week4'] - floor($overload['week4'])));
-                        $totalCreditsFormatted = number_format($totalCredits, 2); 
-                        echo $totalCreditsFormatted;
-                        ?>
-                    </td>
-                    <td>
-                        <a href="#">Download</a> |
-                        <a href="#" onclick="confirmDelete(<?php echo $row['id']; ?>)">Delete</a>
-                    </td>
-
+                            <strong>Total Overload:</strong> <br>
+                            <?php echo $row['week1_overload']; ?>
+                        </td>
+                        <td>
+                            <strong>Total Overload:</strong> <br>
+                            <?php echo $row['week2_overload']; ?>
+                        </td>
+                        <td>
+                            <strong>Total Overload:</strong> <br>
+                            <?php echo $row['week3_overload']; ?>
+                        </td>
+                        <td>
+                            <strong>Total Overload:</strong> <br>
+                            <?php echo $row['week4_overload']; ?>
+                        </td>
+                        <td>
+                            <?php echo ($totalCredits > 0) ? $totalCredits : '0'; ?>
+                        </td>
+                        <td>
+                            <?php echo ($weekOverloads > 0) ? $weekOverloads : '0'; ?>
+                        </td>
+                        <td>
+                        <a href="<?php echo htmlspecialchars('/UCheque/uploads/' . $row['filePath']); ?>" download>Download</a>
+                            <a href="#" onclick="confirmDelete(<?php echo $row['id']; ?>)">Delete</a>
+                        </td>
                     </tr>
                     <?php endwhile; ?>
                 </tbody>
             </table>
-            </div>
 
 
         <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
@@ -310,14 +322,17 @@ include('./includes/topbar.php');
                                 <label for="file" class="form-label">Upload File</label>
                                 <input type="file" class="form-control" id="file" name="file" required>
                             </div>
-                            <button type="submit" class="btn btn-primary">Import</button>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Import</button>
+                            </div>
+                       
                         </form>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
 
 <?php
 include('./includes/footer.php');

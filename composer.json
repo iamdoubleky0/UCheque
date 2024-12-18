@@ -2,6 +2,7 @@
     "require": {
         "ext-gd": "*",
         "ext-fileinfo": "*",
-        "phpoffice/phpspreadsheet": "^3.6"
+        "phpoffice/phpspreadsheet": "^3.6",
+        "phpoffice/phpword": "^1.3"
     }
 }

@@ -3,168 +3,239 @@ include('./includes/authentication.php');
 include('./includes/header.php');
 include('./includes/sidebar.php');
 include('./includes/topbar.php');
+
+$loggedInUserId = $_SESSION['auth_user']['userId']; 
 ?>
 
 <div class="tabular--wrapper">
 
 <h3 class="main--title">Daily Time Record</h3>
-
-<!-- <div class="add">
-    <button class="btn-add" data-bs-toggle="modal" data-bs-target="#importModal">
+    <div class="add">
+    <button class="btn-add" data-bs-toggle="modal" data-bs-target="#requestModal">
         <i class='bx bxs-file-import'></i>
-        <span class="text">Import DTR</span>
+        <span class="text">Request</span>
     </button>
-</div>  // No import button for faculty -->
-
-<div class="table-container">
-    <table>
-        <thead>
-            <tr> <!--  display only the record of the loggedIn faculty -->
-                <th>Academic year</th>
-                <th>Semester</th>
-                <th>Month</th>
-                <th>Overload pay</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
+        </div>
+        <div class="table-container">
             <?php
-            $limit = 10;
-            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-            $page = max($page, 1);
-            $offset = ($page - 1) * $limit;
+                $search_user = isset($_GET['search_user']) ? $_GET['search_user'] : '';
+                $academic_year = isset($_GET['academic_year']) ? $_GET['academic_year'] : '';
+                $semester = isset($_GET['semester']) ? $_GET['semester'] : '';
 
-            // Fix: Query to get the total count of rows
-            $totalQuery = "
-                            SELECT COUNT(*) as total
-                            FROM 
-                                employee
-                            INNER JOIN 
-                                employee_role ON employee.userId = employee_role.userId
-                            LEFT JOIN
-                                itl_extracted_data ON employee.userId = itl_extracted_data.userId
-                            WHERE 
-                                employee_role.role_id = 2
-                        ";
-            $totalResult = $con->query($totalQuery);
-            if (!$totalResult) {
-                die("Error executing query: " . $con->error);
-            }
-            $totalRow = $totalResult->fetch_assoc();
-            $totalRows = isset($totalRow['total']) ? (int)$totalRow['total'] : 0;
-            $totalPages = ceil($totalRows / $limit);
+                $maxHours = 40; 
+                $creditThreshold = 12;
 
-            $sql = "
-                SELECT
-                        employee.userId, 
-                        employee.employeeId, 
-                        employee.firstName, 
-                        employee.middleName, 
-                        employee.lastName, 
-                        employee_role.role_id, 
-                        dtr_extracted_data.*
-                    FROM
-                        dtr_extracted_data
-                    INNER JOIN employee ON dtr_extracted_data.userId = employee.userId
-                    INNER JOIN employee_role ON employee.userId = employee_role.userId
-                    WHERE employee_role.role_id = 2
-                    LIMIT $limit OFFSET $offset
-            ";
+                $query = "SELECT d.id, d.userId, d.academic_year_id, d.semester_id, 
+                            d.week1, d.week2, d.week3, d.week4, d.week5, d.overall_total, 
+                            d.fileName, d.month_year, 
+                            e.firstName, e.middleName, e.lastName, e.employeeId,
+                            a.academic_year, s.semester_name, 
+                            COALESCE(itl.totalOverload, 0) AS totalOverload,
+                            itl.designated,
+                            d.week1_overload, d.week2_overload, d.week3_overload, d.week4_overload
+                        FROM dtr_extracted_data d
+                        JOIN employee e ON d.userId = e.userId
+                        JOIN academic_years a ON d.academic_year_id = a.academic_year_id
+                        JOIN semesters s ON d.semester_id = s.semester_id
+                        LEFT JOIN itl_extracted_data itl ON d.userId = itl.userId
+                        WHERE d.userId = ?"; 
 
-            $result = $con->query($sql);
-
-            if (!$result) {
-                die("Error executing query: " . $con->error);
-            }
-
-            if ($result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    $fullName = trim($row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName']);
-                    echo '<tr>
-                            <td>' . htmlspecialchars($row['academic_years']) . '</td>
-                            <td>' . htmlspecialchars($row['semester']) . '</td>
-                            <td>' . htmlspecialchars($row['designated']) . '</td>
-                            <td>' . htmlspecialchars($row['totalOverload']) . '</td>
-                            <td>
-                                <a href="edit-act.php?employee_id=' . htmlspecialchars($row['userId']) . '" class="action">Download</a>
-                                <a href="#1" class="action">Delete</a>
-                            </td>
-                          </tr>';
+                if (!empty($academic_year)) {
+                    $query .= " AND d.academic_year_id = ?";
                 }
-            } else {
-                echo '<tr><td colspan="7">No users found.</td></tr>';
-            }
+                if (!empty($semester)) {
+                    $query .= " AND d.semester_id = ?";
+                }
+
+                $stmt = $con->prepare($query);
+                if (!$stmt) {
+                    die("Error preparing statement: " . $con->error);
+                }
+
+                $params = [$loggedInUserId];
+                $types = "i";
+
+                if (!empty($academic_year)) {
+                    $params[] = $academic_year;
+                    $types .= "i";
+                }
+                if (!empty($semester)) {
+                    $params[] = $semester;
+                    $types .= "i";
+                }
+
+                $stmt->bind_param($types, ...$params);
+                $stmt->execute();
+                $result = $stmt->get_result();
+
+                if (!$result) {
+                    die("Error fetching data: " . $con->error);
+                }
             ?>
-        </tbody>
-    </table>
+        <?php if (isset($_SESSION['status'])): ?>
+            <div id="statusAlert" class="alert alert-<?php echo $_SESSION['status_code'] === 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show" role="alert">
+                <?php echo $_SESSION['status']; ?>
+            </div>
+            <?php unset($_SESSION['status']); ?>
+        <?php endif; ?>
 
-    <div class="pagination" id="pagination">
-        <?php
-        if ($totalPages > 1) {
-            echo '<a href="?page=1" class="pagination-button">&laquo;</a>';
-            $prevPage = max(1, $page - 1);
-            echo '<a href="?page=' . $prevPage . '" class="pagination-button">&lsaquo;</a>';
-
-            for ($i = 1; $i <= $totalPages; $i++) {
-                $activeClass = ($i == $page) ? 'active' : '';
-                echo '<a href="?page=' . $i . '" class="pagination-button ' . $activeClass . '">' . $i . '</a>';
-            }
-
-            $nextPage = min($totalPages, $page + 1);
-            echo '<a href="?page=' . $nextPage . '" class="pagination-button">&rsaquo;</a>';
-            echo '<a href="?page=' . $totalPages . '" class="pagination-button">&raquo;</a>';
-        }
-        ?>
-    </div>
-</div>
-</div>
-
-<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="importModalLabel">Import Daily Time Record</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form action="./controller/import-dtr.php" method="POST" enctype="multipart/form-data" id="importForm">
-          
-          <div class="mb-3">
-            <label for="userId" class="form-label">Select User</label>
-            <select class="form-control" id="userId" name="userId" required>
-              <option value="" disabled selected>---Select User---</option>
-              <?php
-                $query = "SELECT employee.userId, employee.employeeId, employee.firstName, employee.middleName, employee.lastName 
-                          FROM employee 
-                          WHERE employee.userId = 2";
-                $result = $con->query($query);
-
-                if ($result->num_rows > 0) {
-                    while ($row = $result->fetch_assoc()) {
-                        $fullName = $row['firstName'] . ' ' . $row['middleName'] . ' ' . $row['lastName'];
-                        echo "<option value='" . $row['userId'] . "'>" . htmlspecialchars($fullName) . "</option>";
-                    }
-                } else {
-                    echo "<option value=''>No users found</option>";
+        <script>
+            setTimeout(() => {
+                const alert = document.getElementById('statusAlert');
+                if (alert) {
+                    alert.classList.remove('show');
+                    alert.classList.add('fade');   
+                    setTimeout(() => alert.remove(), 500); 
                 }
-              ?>
-            </select>
-          </div>
+            }, 3000);
+        </script>
 
-          <div class="mb-3">
-            <label for="file" class="form-label">Upload Excel File</label>
-            <input type="file" class="form-control" id="file" name="file" accept=".xlsx" required>
-          </div>
-          
-          <div class="text-end">
-            <button type="submit" class="btn btn-primary" id="submitBtn">Import DTR</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Academic Year</th>
+                    <th>Semester</th>
+                    <th>Month</th>
+                    <th>Total Credits</th>
+                    <th>Overload Pay</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php while ($row = $result->fetch_assoc()):
+                $weeks = [
+                    'week1' => $row['week1'],
+                    'week2' => $row['week2'],
+                    'week3' => $row['week3'],
+                    'week4' => $row['week4'],
+                    'week5' => $row['week5'],
+                ];
+
+                $totalOverload = $row['totalOverload'];
+                $excess = []; 
+                $overload = []; 
+
+                foreach ($weeks as $key => $weekHours) {
+                    if ($weekHours > $maxHours) {
+                        $overload[$key] = round($weekHours - $maxHours, 2);
+                        $excess[$key] = round($weekHours - $maxHours - $totalOverload, 2);
+                    } else {
+                        $overload[$key] = 0;
+                        $excess[$key] = 0;
+                    }
+                }
+
+                $totalCredits = 0;
+                $weekOverloads = 0;
+
+                foreach (['week1_overload', 'week2_overload', 'week3_overload', 'week4_overload'] as $week) {
+                    $weekOverloads += $row[$week];
+                    if ($row[$week] > 12) {
+                        $totalCredits += ($row[$week] - 12);
+                    }
+                }
+
+                if ($totalCredits > 0) {
+                    $weekOverloads -= $totalCredits;
+                    if ($weekOverloads < 0) {
+                        $weekOverloads = 0;
+                    }
+                }
+            ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($row['academic_year']); ?></td>
+                    <td><?php echo htmlspecialchars($row['semester_name']); ?></td>
+                    <td><?php echo htmlspecialchars($row['month_year']); ?></td>
+                    <td><?php echo ($totalCredits > 0) ? $totalCredits : '0'; ?></td>
+                    <td><?php echo ($weekOverloads > 0) ? $weekOverloads : '0'; ?></td>
+                    <td>
+                                    <a href="#">Download</a> |
+                                    <a href="#" onclick="confirmDelete(<?php echo $row['id']; ?>)">Delete</a>
+                                </td>
+                </tr>
+            <?php endwhile; ?>
+            </tbody>
+        </table>
+
+        </div>
+        </div>
+
+        <!-- Modal -->
+        <div class="modal fade" id="requestModal" tabindex="-1" aria-labelledby="requestModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="requestModalLabel">Request for Period</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                    <form id="requestForm" method="POST" action="./controller/handle_request.php">
+                            <div class="mb-3">
+                                <label for="startMonth" class="form-label">Starting Month</label>
+                                <select id="startMonth" class="form-select" name="startMonth" required>
+                                    <option value="" disabled selected>Select Starting Month</option>
+                                    <option value="January">January</option>
+                                    <option value="February">February</option>
+                                    <option value="March">March</option>
+                                    <option value="April">April</option>
+                                    <option value="May">May</option>
+                                    <option value="June">June</option>
+                                    <option value="July">July</option>
+                                    <option value="August">August</option>
+                                    <option value="September">September</option>
+                                    <option value="October">October</option>
+                                    <option value="November">November</option>
+                                    <option value="December">December</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="endMonth" class="form-label">Ending Month</label>
+                                <select id="endMonth" class="form-select" name="endMonth" required>
+                                    <option value="" disabled selected>Select Ending Month</option>
+                                    <option value="January">January</option>
+                                    <option value="February">February</option>
+                                    <option value="March">March</option>
+                                    <option value="April">April</option>
+                                    <option value="May">May</option>
+                                    <option value="June">June</option>
+                                    <option value="July">July</option>
+                                    <option value="August">August</option>
+                                    <option value="September">September</option>
+                                    <option value="October">October</option>
+                                    <option value="November">November</option>
+                                    <option value="December">December</option>
+                                </select>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">Submit Request</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
 
 <?php
 include('./includes/footer.php');
 ?>
+
+<script>
+    document.getElementById('requestForm').addEventListener('submit', function (e) {
+    const startMonth = document.getElementById('startMonth').value;
+    const endMonth = document.getElementById('endMonth').value;
+
+    const monthOrder = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    if (monthOrder.indexOf(startMonth) > monthOrder.indexOf(endMonth)) {
+        e.preventDefault();
+        alert("Error: Starting month must be before or the same as the ending month.");
+    }
+});
+
+ </script>
